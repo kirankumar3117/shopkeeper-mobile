@@ -1,8 +1,9 @@
 import { OrderCard } from '@/src/components/OrderCard';
+import { OrderTabs } from '@/src/components/OrderTabs';
 import { ShopHeader } from '@/src/components/ShopHeader';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // MOCK DATA
@@ -52,6 +53,13 @@ export default function OrdersScreen() {
   // Filter orders
   const filteredOrders = orders.filter(o => o.status === activeTab);
 
+  // Helper to calculate counts dynamically (Optional UX bonus)
+  const getCounts = () => ({
+    new: orders.filter(o => o.status === 'new').length,
+    preparing: orders.filter(o => o.status === 'preparing').length,
+    ready: orders.filter(o => o.status === 'ready').length,
+  });
+
   const handleAccept = (orderId: string) => {
     setOrders(orders.map(o => o.id === orderId ? { ...o, status: 'preparing' } : o));
   };
@@ -78,24 +86,12 @@ export default function OrdersScreen() {
           onNotificationPress={() => alert('Notifications coming soon!')}
         />
 
-        {/* 2. Tabs (Improved Spacing) */}
-        <View className="flex-row px-4 pt-4 pb-2 space-x-3 bg-gray-50">
-          {['new', 'preparing', 'ready'].map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              onPress={() => setActiveTab(tab as any)}
-              className={`px-6 py-2.5 rounded-full border shadow-sm ${
-                activeTab === tab 
-                  ? 'bg-green-600 border-green-600' 
-                  : 'bg-white border-gray-200'
-              }`}
-            >
-              <Text className={`font-bold capitalize ${activeTab === tab ? 'text-white' : 'text-gray-600'}`}>
-                {tab}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {/* 2. Tabs (Now Clean & Reusable) */}
+        <OrderTabs 
+          activeTab={activeTab} 
+          onTabChange={setActiveTab} 
+          counts={getCounts()} // Pass counts if you want "New (2)"
+        />
 
         {/* 3. Orders List */}
         <ScrollView className="flex-1 px-4 pt-2" showsVerticalScrollIndicator={false}>
