@@ -9,7 +9,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const { setPhoneNumber } = useAuthStore(); // Access the Brain
   
-  const [mobile, setMobile] = useState('');
+  const [mobile, setMobile] = useState('7396194585');
   const [error, setError] = useState('');
 
   const handleSendOTP = () => {

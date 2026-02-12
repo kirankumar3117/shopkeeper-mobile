@@ -17,8 +17,6 @@ const MOCK_ORDERS = [
     items: [
       { name: 'Aashirvaad Atta', qty: '5kg' },
       { name: 'Freedom Oil', qty: '2L' },
-      { name: 'Tata Salt', qty: '3 pkts' },
-      { name: 'Maggi', qty: '2 pkts' }, 
     ]
   },
   {
@@ -46,16 +44,38 @@ const MOCK_ORDERS = [
 
 export default function OrdersScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'new' | 'preparing' | 'ready'>('new');
+  // Changed default state to 'all'
+  const [activeTab, setActiveTab] = useState<'all' | 'preparing' | 'ready'>('all');
   const [orders, setOrders] = useState(MOCK_ORDERS);
-  const [isStoreOnline, setStoreOnline] = useState(true)
+  const [isStoreOnline, setStoreOnline] = useState(true);
 
-  // Filter orders
-  const filteredOrders = orders.filter(o => o.status === activeTab);
+  // --- FILTER & SORT LOGIC ---
+  const getSortedOrders = () => {
+    let filteredOrders = [];
 
-  // Helper to calculate counts dynamically (Optional UX bonus)
+    if (activeTab === 'all') {
+      // Show EVERYTHING
+      filteredOrders = [...orders];
+    } else {
+      // Show Selected Tab AND 'new' orders (New orders must always show)
+      filteredOrders = orders.filter(o => o.status === activeTab || o.status === 'new');
+    }
+
+    // Sort Order: New (1) -> Preparing (2) -> Ready (3)
+    const statusOrder = { 'new': 1, 'preparing': 2, 'ready': 3 };
+    filteredOrders.sort((a, b) => {
+      return (statusOrder[a.status as keyof typeof statusOrder] || 99) - 
+             (statusOrder[b.status as keyof typeof statusOrder] || 99);
+    });
+
+    return filteredOrders;
+  };
+
+  const displayedOrders = getSortedOrders();
+
+  // Updated Counts Logic (New -> All)
   const getCounts = () => ({
-    new: orders.filter(o => o.status === 'new').length,
+    all: orders.length, // Total count of all orders
     preparing: orders.filter(o => o.status === 'preparing').length,
     ready: orders.filter(o => o.status === 'ready').length,
   });
@@ -75,9 +95,8 @@ export default function OrdersScreen() {
 
   return (
     <View className="flex-1 bg-gray-50">
-      <SafeAreaView className="flex-1" edges={['top']}> {/* Optimized Safe Area */}
+      <SafeAreaView className="flex-1" edges={['top']}>
 
-        {/* 1. Header */}
         <ShopHeader
           title="Live Orders"
           isStoreOnline={isStoreOnline}
@@ -86,41 +105,59 @@ export default function OrdersScreen() {
           onNotificationPress={() => alert('Notifications coming soon!')}
         />
 
-        {/* 2. Tabs (Now Clean & Reusable) */}
         <OrderTabs 
           activeTab={activeTab} 
           onTabChange={setActiveTab} 
-          counts={getCounts()} // Pass counts if you want "New (2)"
+          counts={getCounts()} 
         />
 
-        {/* 3. Orders List */}
         <ScrollView className="flex-1 px-4 pt-2" showsVerticalScrollIndicator={false}>
-          {filteredOrders.length === 0 ? (
+          {displayedOrders.length === 0 ? (
             <View className="mt-20 items-center opacity-50">
               <Text className="text-5xl mb-4">🥗</Text>
-              <Text className="text-gray-500 font-medium">No orders in {activeTab}</Text>
+              <Text className="text-gray-500 font-medium">No orders found</Text>
             </View>
           ) : (
-            filteredOrders.map((order) => (
-              <OrderCard 
-                key={order.id}
-                id={order.id}
-                status={order.status as any}
-                time={order.time}
-                paymentMode={order.payment}
-                total={order.total}
-                items={order.items}
-                onExpand={() => router.push({
-                  pathname: "/order-details/[id]",
-                  params: { id: order.id } 
-                })}
-                onAccept={() => handleAccept(order.id)}
-                onStatusUpdate={() => handleStatusUpdate(order.id, order.status)}
-              />
-            ))
+            displayedOrders.map((order, index) => {
+              // Header Logic: Show if this is the first item OR if status changed from previous item
+              const showHeader = index === 0 || order.status !== displayedOrders[index - 1].status;
+              
+              return (
+                <View key={order.id}>
+                  
+                  {/* DYNAMIC HEADER */}
+                  {showHeader && (
+                    <View className="flex-row items-center py-4 mt-2">
+                      <View className="flex-1 h-[1px] bg-gray-300" />
+                      <Text className={`mx-3 text-xs font-bold uppercase tracking-widest ${
+                        order.status === 'new' ? 'text-green-700' : 'text-gray-500'
+                      }`}>
+                        {order.status === 'new' ? '⚡ New Arrivals' : 
+                         order.status === 'preparing' ? 'Preparing' : 'Ready for Pickup'}
+                      </Text>
+                      <View className="flex-1 h-[1px] bg-gray-300" />
+                    </View>
+                  )}
+                  
+                  <OrderCard 
+                    id={order.id}
+                    status={order.status as any}
+                    time={order.time}
+                    paymentMode={order.payment}
+                    total={order.total}
+                    items={order.items}
+                    onExpand={() => router.push({
+                      pathname: "/order-details/[id]",
+                      params: { id: order.id } 
+                    })}
+                    onAccept={() => handleAccept(order.id)}
+                    onStatusUpdate={() => handleStatusUpdate(order.id, order.status)}
+                  />
+                </View>
+              );
+            })
           )}
           
-          {/* Bottom spacer so content doesn't get hidden behind tabs */}
           <View className="h-24" />
         </ScrollView>
       </SafeAreaView>

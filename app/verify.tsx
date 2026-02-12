@@ -10,7 +10,7 @@ export default function VerifyScreen() {
   const { login } = useAuthStore();
   
   const [mode, setMode] = useState<'otp' | 'agent'>('agent'); // Toggle State
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState('AGENT007');
   const [error, setError] = useState('');
 
   const switchMode = (newMode: 'otp' | 'agent') => {

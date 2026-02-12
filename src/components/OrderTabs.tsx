@@ -1,7 +1,8 @@
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
-type TabType = 'new' | 'preparing' | 'ready';
+// Changed 'new' to 'all' as requested
+type TabType = 'all' | 'preparing' | 'ready';
 
 interface OrderTabsProps {
   activeTab: TabType;
@@ -10,7 +11,7 @@ interface OrderTabsProps {
 }
 
 export function OrderTabs({ activeTab, onTabChange, counts }: OrderTabsProps) {
-  const tabs: TabType[] = ['new', 'preparing', 'ready'];
+  const tabs: TabType[] = ['all', 'preparing', 'ready'];
 
   return (
     <View>
@@ -27,7 +28,7 @@ export function OrderTabs({ activeTab, onTabChange, counts }: OrderTabsProps) {
               } ${index > 0 ? 'border-l border-gray-300' : ''}`}
             >
               <Text className={`font-bold text-base capitalize ${isActive ? 'text-white' : 'text-gray-600'}`}>
-                {tab} {counts && counts[tab] ? `(${counts[tab]})` : ''}
+                {tab} {counts && counts[tab] !== undefined ? `(${counts[tab]})` : ''}
               </Text>
             </TouchableOpacity>
           );
