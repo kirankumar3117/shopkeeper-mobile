@@ -47,7 +47,7 @@ export default function OrdersScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'new' | 'preparing' | 'ready'>('new');
   const [orders, setOrders] = useState(MOCK_ORDERS);
-  const [isStoreOnline, setStoreOnline] = useState(true);
+  const [isStoreOnline, setStoreOnline] = useState(true)
 
   // Filter orders
   const filteredOrders = orders.filter(o => o.status === activeTab);
