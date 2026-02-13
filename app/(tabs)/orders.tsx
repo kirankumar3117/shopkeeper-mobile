@@ -78,8 +78,6 @@ export default function OrdersScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'all' | 'preparing' | 'ready'>('all');
   const [orders, setOrders] = useState(MOCK_ORDERS);
-  
-  // 1. STATE: Default is true, but toggling this controls the view
   const [isStoreOnline, setStoreOnline] = useState(true);
 
   // --- FILTER & SORT LOGIC ---
@@ -106,7 +104,18 @@ export default function OrdersScreen() {
     ready: orders.filter(o => o.status === 'ready').length,
   });
 
-  // ... handleAccept and handleStatusUpdate functions ...
+  const handleAccept = (orderId: string) => {
+    setOrders(orders.map(o => o.id === orderId ? { ...o, status: 'preparing' } : o));
+  };
+
+  const handleStatusUpdate = (orderId: string, currentStatus: string) => {
+    const nextStatus = currentStatus === 'preparing' ? 'ready' : 'completed';
+    if(nextStatus === 'completed') {
+      setOrders(orders.filter(o => o.id !== orderId));
+    } else {
+      setOrders(orders.map(o => o.id === orderId ? { ...o, status: nextStatus as any } : o));
+    }
+  };
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -131,29 +140,16 @@ export default function OrdersScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ flexGrow: 1 }} 
         >
-          {/* === LOGIC BRANCHING ===
-              1. If Store is OFFLINE -> Show "Closed" View
-              2. If Store is ONLINE but Empty -> Show "All Caught Up" View
-              3. If Store is ONLINE and has Orders -> Show List
-          */}
-
           {!isStoreOnline ? (
             // === 🔴 STORE CLOSED VIEW ===
             <View className="flex-1 justify-center items-center pb-20">
               <View className="bg-gray-100 p-8 rounded-full mb-6 border border-gray-200">
                 <Text className="text-6xl grayscale opacity-50">🔒</Text> 
               </View>
-              
-              <Text className="text-2xl font-bold text-gray-900 tracking-tight">
-                Store is Offline
-              </Text>
-              
+              <Text className="text-2xl font-bold text-gray-900 tracking-tight">Store is Offline</Text>
               <Text className="text-gray-400 text-center mt-2 px-10 leading-relaxed font-medium mb-8">
-                You are not receiving new orders. {"\n"}
-                Go online to start selling.
+                You are not receiving new orders. {"\n"}Go online to start selling.
               </Text>
-
-              {/* Big "GO ONLINE" Button */}
               <TouchableOpacity 
                 onPress={() => setStoreOnline(true)}
                 activeOpacity={0.8}
@@ -170,9 +166,7 @@ export default function OrdersScreen() {
               <View className="bg-green-50 p-8 rounded-full mb-6 border border-green-100 shadow-sm">
                 <Text className="text-6xl">🥗</Text> 
               </View>
-              <Text className="text-2xl font-bold text-gray-900 tracking-tight">
-                All Caught Up!
-              </Text>
+              <Text className="text-2xl font-bold text-gray-900 tracking-tight">All Caught Up!</Text>
               <Text className="text-gray-400 text-center mt-2 px-10 leading-relaxed font-medium">
                 No active orders in <Text className="text-green-600 font-bold capitalize">{activeTab}</Text> right now.
                 {"\n"}Time to organize the shelves?
@@ -185,7 +179,6 @@ export default function OrdersScreen() {
               const showHeader = index === 0 || order.status !== displayedOrders[index - 1].status;
               return (
                 <View key={order.id}>
-                  {/* ... (Existing List Rendering Logic) ... */}
                   {showHeader && (
                     <View className="flex-row items-center py-4 mt-2">
                       <View className="flex-1 h-[1px] bg-gray-300" />
@@ -206,11 +199,13 @@ export default function OrdersScreen() {
                     paymentMode={order.payment}
                     total={order.total}
                     items={order.items}
+                    // 👇 This function navigates to details page
                     onExpand={() => router.push({
                       pathname: "/order-details/[id]",
                       params: { id: order.id } 
                     })}
-                    // Pass props...
+                    onAccept={() => handleAccept(order.id)}
+                    onStatusUpdate={() => handleStatusUpdate(order.id, order.status)}
                   />
                 </View>
               );

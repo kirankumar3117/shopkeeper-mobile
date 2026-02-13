@@ -11,72 +11,48 @@ import Animated, {
   withTiming
 } from 'react-native-reanimated';
 
-// --- 1. The "Sonar Alarm" Badge Component ---
+// --- 1. The "Sonar Alarm" Badge (Kept from previous steps) ---
 const PulseBadge = () => {
-  // Animation Values
-  const pulse = useSharedValue(0);     // For the expanding waves
-  const wiggle = useSharedValue(0);    // For the "Flip/Shake" effect
+  const pulse = useSharedValue(0);
+  const wiggle = useSharedValue(0);
 
   useEffect(() => {
-    // 1. The Wave Animation (Continuous Loop)
     pulse.value = withRepeat(
       withTiming(1, { duration: 1500, easing: Easing.out(Easing.ease) }),
-      -1,
-      false
+      -1, false
     );
-
-    // 2. The "Flip/Wiggle" Animation (Rapid shaking like a bell)
     wiggle.value = withRepeat(
       withSequence(
-        withTiming(-5, { duration: 100 }), // Tilt Left
-        withTiming(5, { duration: 100 }),  // Tilt Right
+        withTiming(-5, { duration: 100 }),
+        withTiming(5, { duration: 100 }),
         withTiming(-5, { duration: 100 }),
         withTiming(0, { duration: 100 }),
-        withDelay(1000, withTiming(0, { duration: 0 })) // Wait a bit before shaking again
+        withDelay(1000, withTiming(0, { duration: 0 }))
       ),
-      -1,
-      true
+      -1, true
     );
   }, []);
 
-  // Style for the First Wave Ring
   const wave1Style = useAnimatedStyle(() => ({
     transform: [{ scale: interpolate(pulse.value, [0, 1], [1, 2.5]) }],
     opacity: interpolate(pulse.value, [0, 1], [0.8, 0]),
   }));
 
-  // Style for the Second Wave Ring (Delayed)
   const wave2Style = useAnimatedStyle(() => ({
     transform: [{ scale: interpolate(pulse.value, [0, 1], [1, 2]) }],
     opacity: interpolate(pulse.value, [0, 1], [0.5, 0]),
   }));
 
-  // Style for the Badge itself (The Wiggle)
   const badgeStyle = useAnimatedStyle(() => ({
     transform: [{ rotateZ: `${wiggle.value}deg` }]
   }));
 
   return (
     <View className="relative items-center justify-center w-16 h-8">
-      {/* Wave 1 (Outer) */}
-      <Animated.View 
-        className="absolute w-full h-full rounded-full border-2 border-yellow-400"
-        style={wave1Style}
-      />
-      {/* Wave 2 (Inner) */}
-      <Animated.View 
-        className="absolute w-full h-full rounded-full border-2 border-yellow-500"
-        style={wave2Style}
-      />
-      
-      {/* The Actual Badge (Wiggling) */}
-      <Animated.View 
-        style={badgeStyle}
-        className="px-4 py-1.5 rounded-full bg-yellow-400 shadow-sm z-10"
-      >
-        <Text className="font-bold text-xs uppercase tracking-wider text-black">
-          NEW!
-        </Text>
+      <Animated.View className="absolute w-full h-full rounded-full border-2 border-yellow-400" style={wave1Style} />
+      <Animated.View className="absolute w-full h-full rounded-full border-2 border-yellow-500" style={wave2Style} />
+      <Animated.View style={badgeStyle} className="px-4 py-1.5 rounded-full bg-yellow-400 shadow-sm z-10">
+        <Text className="font-bold text-xs uppercase tracking-wider text-black">NEW!</Text>
       </Animated.View>
     </View>
   );
@@ -135,7 +111,6 @@ export function OrderCard({
           </Text>
         </View>
 
-        {/* STATUS BADGE LOGIC */}
         <View className="mt-1 mr-1"> 
           {status === 'new' ? (
             <PulseBadge />
@@ -155,13 +130,19 @@ export function OrderCard({
       <View className="p-4">
         {isImageOrder ? (
           <View>
-             <View className="flex-row items-center bg-gray-50 p-3 rounded-xl border border-dashed border-gray-300 mb-3">
+             {/* 👇 UPDATED: This entire box is now clickable */}
+             <TouchableOpacity 
+               onPress={onExpand}
+               activeOpacity={0.7}
+               className="flex-row items-center bg-gray-50 p-3 rounded-xl border border-dashed border-gray-300 mb-3"
+             >
                <Text className="text-2xl mr-3">📄</Text>
                <View>
                  <Text className="text-gray-900 font-bold text-sm">Handwritten List</Text>
-                 <Text className="text-gray-400 text-xs">Tap expand to view</Text>
+                 <Text className="text-gray-400 text-xs">Tap to view full details</Text>
                </View>
-             </View>
+             </TouchableOpacity>
+
              <View className="items-end">
                 <TouchableOpacity 
                   onPress={onExpand}
