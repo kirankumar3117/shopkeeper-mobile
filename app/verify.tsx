@@ -1,116 +1,167 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { ArrowLeft } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet // Added for stable shadows
+  ,
+
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../src/core/store';
 
 export default function VerifyScreen() {
   const router = useRouter();
-  const { phone } = useLocalSearchParams(); // Get the number passed from Login
-  const { login } = useAuthStore();
+  const insets = useSafeAreaInsets();
+  const { login, phoneNumber, verifyPurpose } = useAuthStore();
   
-  const [mode, setMode] = useState<'otp' | 'agent'>('agent'); // Toggle State
-  const [code, setCode] = useState('AGENT007');
+  const isRegistration = verifyPurpose === 'register';
+
+  const [mode, setMode] = useState('otp'); 
+  const [code, setCode] = useState('');
   const [error, setError] = useState('');
 
   const switchMode = (newMode: 'otp' | 'agent') => {
-    setMode(newMode);
-    setCode('');
-    setError('');
+    Keyboard.dismiss(); 
+    const timer = setTimeout(() => {
+      setMode(newMode);
+      setCode(''); 
+      setError('');
+    }, 100);
+    return () => clearTimeout(timer); 
+  };
+
+  const handleSuccess = () => {
+    login();
+    if (isRegistration) {
+      router.replace('/shop-setup');
+    } else {
+      router.replace('/(tabs)/orders');
+    }
   };
 
   const handleVerify = () => {
     setError('');
+    const cleanCode = code.trim();
 
     if (mode === 'otp') {
-      // 1. Validate OTP (Simulate '1234')
-      if (code === '1234') {
-        login(); // Update Store
-        router.push('/shop-setup');
-      } else {
-        setError('Invalid OTP. Try 1234');
-      }
+      if (cleanCode === '1234') handleSuccess();
+      else setError('Invalid OTP. Try 1234');
     } else {
-      // 2. Validate Agent Code (Simulate 'AGENT007')
-      if (code.toUpperCase() === 'AGENT007') {
-        login(); // Update Store
-        router.push('/shop-setup');
-      } else {
-        setError('Invalid Agent Code. Ask your agent.');
-      }
+      if (cleanCode.toUpperCase() === 'AGENT007') handleSuccess();
+      else setError('Invalid Agent Code.');
     }
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white px-6 pt-10">
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        
-        {/* Header */}
-        <TouchableOpacity onPress={() => router.back()} className="mb-6">
-          <Text className="text-xl text-gray-600">← Change Number</Text>
+    <View 
+      className="flex-1 bg-white" 
+      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+    >
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1 px-6"
+      >
+        <TouchableOpacity 
+          onPress={() => router.back()} 
+          className="mb-8 flex-row items-center mt-2"
+        >
+          <ArrowLeft size={24} color="#4B5563" />
+          <Text className="text-lg text-gray-600 ml-2">Change Number</Text>
         </TouchableOpacity>
 
-        <Text className="text-3xl font-bold text-gray-900 mb-2">
-          {mode === 'otp' ? 'Enter OTP' : 'Agent Verification'}
-        </Text>
-        
-        <Text className="text-gray-500 mb-8">
-          {mode === 'otp' 
-            ? `We sent a code to +91 ${phone || '******'}` 
-            : 'Enter the unique code provided by your field agent.'}
-        </Text>
-
-        {/* The Toggle Switch */}
-        <View className="flex-row bg-gray-100 p-1 rounded-xl mb-8">
-          <TouchableOpacity 
-            
-            className={`flex-1 py-3 rounded-lg items-center ${mode === 'otp' ? 'bg-white shadow-sm' : ''}`}
-          >
-            <Text className={`font-bold ${mode === 'otp' ? 'text-green-600' : 'text-gray-500'}`}>SMS OTP</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-           
-            className={`flex-1 py-3 rounded-lg items-center ${mode === 'agent' ? 'bg-white shadow-sm' : ''}`}
-          >
-            <Text className={`font-bold ${mode === 'agent' ? 'text-green-600' : 'text-gray-500'}`}>Agent Code</Text>
-          </TouchableOpacity>
+        <View className="mb-8">
+          <Text className="text-3xl font-bold text-gray-900 mb-2">
+            {mode === 'otp' ? 'Enter OTP' : 'Agent Code'}
+          </Text>
+          <Text className="text-gray-500 text-base leading-6">
+            {mode === 'otp' 
+              ? `We sent a 4-digit code to +91 ${phoneNumber || '******'}` 
+              : 'Enter the unique code provided by your field agent to activate your account.'}
+          </Text>
         </View>
 
-        {/* Input Field */}
+        {isRegistration && (
+          <View className="flex-row bg-gray-100 p-1 rounded-xl mb-8">
+            <TouchableOpacity 
+              onPress={() => switchMode('otp')}
+              className={`flex-1 py-3 rounded-lg items-center ${mode === 'otp' ? 'bg-white shadow-sm' : ''}`}
+            >
+              <Text className={`font-bold ${mode === 'otp' ? 'text-green-600' : 'text-gray-500'}`}>SMS OTP</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              onPress={() => switchMode('agent')}
+              className={`flex-1 py-3 rounded-lg items-center ${mode === 'agent' ? 'bg-white shadow-sm' : ''}`}
+            >
+              <Text className={`font-bold ${mode === 'agent' ? 'text-green-600' : 'text-gray-500'}`}>Agent Code</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <TextInput 
-        key={mode}
           className={`w-full bg-gray-50 border rounded-xl p-5 text-center text-2xl tracking-widest font-bold ${
             error ? 'border-red-500 bg-red-50' : 'border-green-500 bg-white'
           }`}
           placeholder={mode === 'otp' ? "• • • •" : "AGENT CODE"}
-          keyboardType={mode === 'otp' ? "number-pad" : "default"}
+          placeholderTextColor="#9CA3AF"
+          keyboardType={mode === 'otp' ? "number-pad" : "default"} 
           maxLength={mode === 'otp' ? 4 : 10}
           value={code}
-          onChangeText={setCode}
+          onChangeText={(text) => {
+            setCode(text);
+            if(error) setError('');
+          }}
           autoCapitalize="characters"
         />
         
-        {error ? <Text className="text-red-500 text-center mt-4">{error}</Text> : null}
+        {error ? (
+          <Text className="text-red-500 text-center mt-4 font-medium">{error}</Text> 
+        ) : null}
 
-        {/* Action Button */}
         <TouchableOpacity 
           onPress={handleVerify}
-          className="w-full bg-green-600 py-4 rounded-xl items-center mt-8 shadow-lg shadow-green-200"
+          // Removed shadow classes from className and added style below
+          className="w-full bg-green-600 py-4 rounded-xl items-center mt-8"
+          activeOpacity={0.8}
+          style={styles.btnShadow} 
         >
           <Text className="text-white font-bold text-lg">
-            {mode === 'otp' ? 'Verify OTP' : 'Verify Agent'}
+            {mode === 'otp' ? 'Verify & Login' : 'Verify Agent'}
           </Text>
         </TouchableOpacity>
 
-        {/* Resend Link (Only for OTP) */}
         {mode === 'otp' && (
-          <TouchableOpacity className="mt-6 items-center">
-            <Text className="text-gray-500">Didn't receive code? <Text className="text-green-600 font-bold">Resend</Text></Text>
+          <TouchableOpacity className="mt-6 items-center p-2">
+            <Text className="text-gray-500">
+              Didn't receive code? <Text className="text-green-600 font-bold">Resend</Text>
+            </Text>
           </TouchableOpacity>
         )}
-
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
+
+// Fixed styling to avoid NativeWind shadow parsing bug
+const styles = StyleSheet.create({
+  btnShadow: {
+    ...Platform.select({
+      ios: {
+        shadowColor: '#10B981',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+});
