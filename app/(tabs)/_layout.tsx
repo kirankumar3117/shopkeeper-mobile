@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
+import { Package, ShoppingBag, Store } from 'lucide-react-native';
 import { View } from 'react-native';
-import { ShoppingBag, Package, Store } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
