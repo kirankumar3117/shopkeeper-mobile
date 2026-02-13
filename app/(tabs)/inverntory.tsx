@@ -15,13 +15,16 @@ export default function InventoryScreen() {
     { id: 4, name: 'Tata Salt', variant: '1kg', price: 28, stock: false },
     { id: 5, name: 'Maggi Noodles', variant: 'Small Packet', price: 14, stock: true },
   ]);
-
+  
   // --- 2. ADD PRODUCT MODAL STATE ---
   const [isAddModalVisible, setAddModalVisible] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemVariant, setNewItemVariant] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
 
+
+  // ---- 3. Filter options state ----
+  const [filter, setFilter] = useState<'all' | 'in' | 'out'>('all');
   // --- ACTIONS ---
 
   const handleToggleStock = (id: number) => {
@@ -56,9 +59,13 @@ export default function InventoryScreen() {
   };
 
   // Filter Logic
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredProducts = products.filter(p => {
+  const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+  const matchesStock = filter === 'all' 
+    ? true 
+    : filter === 'in' ? p.stock : !p.stock;
+  return matchesSearch && matchesStock;
+});
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -71,6 +78,8 @@ export default function InventoryScreen() {
             {products.length} Products Total
           </Text>
         </View>
+
+        
 
         {/* Search Bar */}
         <View className="px-4 py-3 bg-gray-50">
@@ -85,6 +94,35 @@ export default function InventoryScreen() {
             />
           </View>
         </View>
+
+        {/* Filter Chips Section */}
+<View className="bg-white border-b border-gray-100 pb-3">
+  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4">
+    {/* ALL ITEMS CHIP */}
+    <TouchableOpacity 
+      onPress={() => setFilter('all')}
+      className={`mr-2 px-4 py-2 rounded-full border ${filter === 'all' ? 'bg-black border-black' : 'bg-white border-gray-300'}`}
+    >
+      <Text className={`text-xs font-bold ${filter === 'all' ? 'text-white' : 'text-gray-600'}`}>All Items</Text>
+    </TouchableOpacity>
+
+    {/* IN STOCK CHIP */}
+    <TouchableOpacity 
+      onPress={() => setFilter('in')}
+      className={`mr-2 px-4 py-2 rounded-full border ${filter === 'in' ? 'bg-green-600 border-green-600' : 'bg-white border-gray-300'}`}
+    >
+      <Text className={`text-xs font-bold ${filter === 'in' ? 'text-white' : 'text-gray-600'}`}>In Stock</Text>
+    </TouchableOpacity>
+
+    {/* OUT OF STOCK CHIP */}
+    <TouchableOpacity 
+      onPress={() => setFilter('out')}
+      className={`mr-2 px-4 py-2 rounded-full border ${filter === 'out' ? 'bg-red-600 border-red-600' : 'bg-white border-gray-300'}`}
+    >
+      <Text className={`text-xs font-bold ${filter === 'out' ? 'text-white' : 'text-gray-600'}`}>Out of Stock</Text>
+    </TouchableOpacity>
+  </ScrollView>
+</View>
 
         {/* Product List */}
         <ScrollView className="flex-1 px-4 pt-2" showsVerticalScrollIndicator={false}>
