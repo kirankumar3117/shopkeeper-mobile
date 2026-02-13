@@ -17,7 +17,18 @@ const MOCK_ORDERS = [
     items: [
       { name: 'Aashirvaad Atta', qty: '5kg' },
       { name: 'Freedom Oil', qty: '2L' },
+      { name: 'Freedom Oil', qty: '2L' },
+      { name: 'Freedom Oil', qty: '2L' },
     ]
+  },
+  // 👇 ADDED: Test case for "Handwritten List" (Empty items array)
+  {
+    id: '#ORD-IMG-01',
+    status: 'new',
+    time: '5min ago',
+    payment: 'UPI Paid',
+    total: 'Calculating...', 
+    items: [] 
   },
   {
     id: '#ORD-4922',
@@ -44,7 +55,7 @@ const MOCK_ORDERS = [
 
 export default function OrdersScreen() {
   const router = useRouter();
-  // Changed default state to 'all'
+  // State is 'all' by default
   const [activeTab, setActiveTab] = useState<'all' | 'preparing' | 'ready'>('all');
   const [orders, setOrders] = useState(MOCK_ORDERS);
   const [isStoreOnline, setStoreOnline] = useState(true);
@@ -57,7 +68,7 @@ export default function OrdersScreen() {
       // Show EVERYTHING
       filteredOrders = [...orders];
     } else {
-      // Show Selected Tab AND 'new' orders (New orders must always show)
+      // Show Selected Tab AND 'new' orders (Interruptive Priority)
       filteredOrders = orders.filter(o => o.status === activeTab || o.status === 'new');
     }
 
@@ -73,9 +84,9 @@ export default function OrdersScreen() {
 
   const displayedOrders = getSortedOrders();
 
-  // Updated Counts Logic (New -> All)
+  // Counts Logic (All = Total Count)
   const getCounts = () => ({
-    all: orders.length, // Total count of all orders
+    all: orders.length, 
     preparing: orders.filter(o => o.status === 'preparing').length,
     ready: orders.filter(o => o.status === 'ready').length,
   });

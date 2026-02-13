@@ -24,6 +24,9 @@ export function OrderCard({
   onExpand, onAccept, onReject, onStatusUpdate 
 }: OrderCardProps) {
   
+  // Logic: It is an Image Order if items array is empty
+  const isImageOrder = items.length === 0;
+
   const previewItems = items.slice(0, 3);
   const hasMore = items.length > 3;
 
@@ -43,7 +46,14 @@ export function OrderCard({
       <View className="p-4 flex-row justify-between items-start bg-gray-50/50">
         <View>
           <Text className="text-lg font-bold text-gray-900">{id}</Text>
-          <Text className="text-gray-500 text-xs mt-1 font-medium">{time} • {paymentMode}</Text>
+          <Text className="text-gray-500 text-xs mt-1 font-medium">
+            {time} •{' '}
+            <Text className={`font-bold ${
+              paymentMode.toLowerCase().includes('cash') ? 'text-orange-500' : 'text-green-600'
+            }`}>
+              {paymentMode}
+            </Text>
+          </Text>
         </View>
         <View className={`px-3 py-1 rounded-full border ${getStatusColor()}`}>
           <Text className={`font-bold text-xs uppercase tracking-wide`}>
@@ -56,20 +66,36 @@ export function OrderCard({
 
       {/* 2. Items List Section */}
       <View className="p-4 flex-row">
+        
+        {/* Left Side: Content (Either Text List or Image Placeholder) */}
         <View className="flex-1 space-y-3">
-          {previewItems.map((item, index) => (
-            <View key={index} className="flex-row items-center">
-              <View className="h-2 w-2 rounded-full bg-green-400 mr-2" />
-              <Text className="text-gray-700 text-base flex-1">
-                {item.name} <Text className="font-bold text-gray-900">x{item.qty}</Text>
-              </Text>
-            </View>
-          ))}
-          {hasMore && <Text className="text-gray-400 pl-4 font-bold text-lg tracking-widest">. . .</Text>}
+          {isImageOrder ? (
+             // --- IMAGE ORDER UI ---
+             <View className="flex-row items-center bg-gray-50 p-2 rounded-lg border border-dashed border-gray-300">
+               <Text className="text-2xl mr-3">📄</Text>
+               <View>
+                 <Text className="text-gray-900 font-bold text-sm">Handwritten List</Text>
+                 <Text className="text-gray-400 text-xs">Tap expand to view</Text>
+               </View>
+             </View>
+          ) : (
+            // --- TEXT ORDER UI ---
+            <>
+              {previewItems.map((item, index) => (
+                <View key={index} className="flex-row items-center">
+                  <View className="h-2 w-2 rounded-full bg-green-400 mr-2" />
+                  <Text className="text-gray-700 text-base flex-1">
+                    {item.name} <Text className="font-bold text-gray-900">x{item.qty}</Text>
+                  </Text>
+                </View>
+              ))}
+              {hasMore && <Text className="text-gray-400 pl-4 font-bold text-lg tracking-widest">. . .</Text>}
+            </>
+          )}
         </View>
 
-        {/* Expand Button (Styled nicely now) */}
-        {hasMore && (
+        {/* Expand Button: Only visible if Long Order (>3) OR Image Order */}
+        {(hasMore || isImageOrder) && (
           <View className="justify-end pl-2">
             <TouchableOpacity 
               onPress={onExpand}
