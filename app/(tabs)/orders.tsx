@@ -8,7 +8,70 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 // MOCK DATA
 const MOCK_ORDERS = [
-   // ... keep your mock data here ...
+  // 1. NEW ORDER - Big Monthly Grocery (UPI)
+  {
+    id: '#ORD-5501',
+    status: 'new',
+    time: 'Just now',
+    payment: 'UPI Paid',
+    total: '1,240.00',
+    items: [
+      { name: 'India Gate Basmati Rice', qty: '5kg' },
+      { name: 'Toor Dal (Premium)', qty: '1kg' },
+      { name: 'Fortune Sunflower Oil', qty: '1L' },
+      { name: 'Tata Salt', qty: '1pkt' },
+      { name: 'Everest Chicken Masala', qty: '100g' },
+    ]
+  },
+  
+  // 2. NEW ORDER - Handwritten List (Image) -> items array is empty
+  {
+    id: '#ORD-IMG-02',
+    status: 'new',
+    time: '2min ago',
+    payment: 'Cash On Delivery',
+    total: 'Calculating...', 
+    items: [] 
+  },
+
+  // 3. NEW ORDER - Small Snack Run (Cash)
+  {
+    id: '#ORD-5498',
+    status: 'new',
+    time: '5min ago',
+    payment: 'Cash On Delivery',
+    total: '85.00',
+    items: [
+      { name: 'Lays Magic Masala', qty: '2 pkts' },
+      { name: 'Coke (500ml)', qty: '1 btl' },
+    ]
+  },
+
+  // 4. PREPARING - Morning Essentials
+  {
+    id: '#ORD-5490',
+    status: 'preparing',
+    time: '12min ago',
+    payment: 'UPI Paid',
+    total: '145.00',
+    items: [
+      { name: 'Amul Gold Milk', qty: '2 pkts' },
+      { name: 'Modern Bread (Brown)', qty: '1 pkt' },
+      { name: 'Eggs (Dozen)', qty: '1 box' },
+    ]
+  },
+
+  // 5. READY - Heavy Item Pickup
+  {
+    id: '#ORD-5485',
+    status: 'ready',
+    time: '35min ago',
+    payment: 'Cash On Delivery',
+    total: '1,350.00',
+    items: [
+      { name: 'Kurnool Sona Masoori (25kg)', qty: '1 bag' },
+    ]
+  },
 ];
 
 export default function OrdersScreen() {
