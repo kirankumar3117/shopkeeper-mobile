@@ -24,13 +24,12 @@ export function OrderCard({
   onExpand, onAccept, onReject, onStatusUpdate 
 }: OrderCardProps) {
   
-  // Logic: It is an Image Order if items array is empty
+  // Logic: Identify Image Orders
   const isImageOrder = items.length === 0;
-
+  
   const previewItems = items.slice(0, 3);
   const hasMore = items.length > 3;
 
-  // Dynamic Colors based on Status
   const getStatusColor = () => {
     switch(status) {
       case 'new': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
@@ -64,23 +63,35 @@ export function OrderCard({
 
       <View className="h-[1px] bg-gray-100 mx-4" />
 
-      {/* 2. Items List Section */}
-      <View className="p-4 flex-row">
-        
-        {/* Left Side: Content (Either Text List or Image Placeholder) */}
-        <View className="flex-1 space-y-3">
-          {isImageOrder ? (
-             // --- IMAGE ORDER UI ---
-             <View className="flex-row items-center bg-gray-50 p-2 rounded-lg border border-dashed border-gray-300">
+      {/* 2. Content Section (Split Logic) */}
+      <View className="p-4">
+        {isImageOrder ? (
+          // === CASE A: IMAGE ORDER (Vertical Layout) ===
+          // "Expand" goes DOWN below the content
+          <View>
+             <View className="flex-row items-center bg-gray-50 p-3 rounded-xl border border-dashed border-gray-300 mb-3">
                <Text className="text-2xl mr-3">📄</Text>
                <View>
                  <Text className="text-gray-900 font-bold text-sm">Handwritten List</Text>
                  <Text className="text-gray-400 text-xs">Tap expand to view</Text>
                </View>
              </View>
-          ) : (
-            // --- TEXT ORDER UI ---
-            <>
+             
+             {/* Button Below */}
+             <View className="items-end">
+                <TouchableOpacity 
+                  onPress={onExpand}
+                  className="bg-green-50 border border-green-200 px-4 py-2 rounded-xl"
+                >
+                  <Text className="font-bold text-green-700 text-sm">Expand ↘</Text>
+                </TouchableOpacity>
+             </View>
+          </View>
+        ) : (
+          // === CASE B: TEXT ORDER (Horizontal Layout) ===
+          // "Expand" stays on the RIGHT side
+          <View className="flex-row">
+            <View className="flex-1 space-y-3">
               {previewItems.map((item, index) => (
                 <View key={index} className="flex-row items-center">
                   <View className="h-2 w-2 rounded-full bg-green-400 mr-2" />
@@ -90,19 +101,19 @@ export function OrderCard({
                 </View>
               ))}
               {hasMore && <Text className="text-gray-400 pl-4 font-bold text-lg tracking-widest">. . .</Text>}
-            </>
-          )}
-        </View>
+            </View>
 
-        {/* Expand Button: Only visible if Long Order (>3) OR Image Order */}
-        {(hasMore || isImageOrder) && (
-          <View className="justify-end pl-2">
-            <TouchableOpacity 
-              onPress={onExpand}
-              className="bg-green-50 border border-green-200 px-4 py-2 rounded-xl"
-            >
-              <Text className="font-bold text-green-700 text-sm">Expand ↘</Text>
-            </TouchableOpacity>
+            {/* Side Expand Button */}
+            {hasMore && (
+              <View className="justify-end pl-2">
+                <TouchableOpacity 
+                  onPress={onExpand}
+                  className="bg-green-50 border border-green-200 px-4 py-2 rounded-xl"
+                >
+                  <Text className="font-bold text-green-700 text-sm">Expand ↘</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         )}
       </View>
