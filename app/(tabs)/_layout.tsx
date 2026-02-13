@@ -1,45 +1,70 @@
 import { Tabs } from 'expo-router';
-import { View, Text } from 'react-native';
-
-// Simple Icon Component (Since we might not have vector icons set up yet)
-function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
-  return (
-    <View className={`items-center justify-center h-10 w-10 rounded-full ${focused ? 'bg-green-100' : ''}`}>
-      <Text className="text-xl">{emoji}</Text>
-    </View>
-  );
-}
+import { View } from 'react-native';
+import { ShoppingBag, Package, Store } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { height: 70, paddingBottom: 10, paddingTop: 10 },
-        tabBarShowLabel: true,
-        tabBarActiveTintColor: '#16A34A', // Green
-        tabBarInactiveTintColor: '#9CA3AF', // Gray
+        // 1. Taller Tab Bar for easier tapping with busy hands
+        tabBarStyle: { 
+          height: 70, 
+          paddingBottom: 12, 
+          paddingTop: 12,
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 1,
+          borderTopColor: '#F3F4F6',
+          elevation: 0, // Clean look (removes default Android shadow)
+        },
+        // 2. Professional Colors (Green = Active)
+        tabBarActiveTintColor: '#16A34A', 
+        tabBarInactiveTintColor: '#9CA3AF', 
+        // 3. Readable Text Labels
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '700',
+          marginTop: 4,
+        },
       }}
     >
+      {/* TAB 1: LIVE ORDERS */}
       <Tabs.Screen
-        name="orders" // This points to orders.tsx
+        name="orders"
         options={{
           title: 'Live Orders',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🔔" focused={focused} />,
+          tabBarIcon: ({ color, focused }) => (
+            // The "Pill" Effect: Green background when active
+            <View className={`p-1.5 rounded-xl ${focused ? 'bg-green-50' : 'bg-transparent'}`}>
+              <ShoppingBag size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
+            </View>
+          ),
         }}
       />
+
+      {/* TAB 2: INVENTORY (Stock) */}
       <Tabs.Screen
         name="inventory"
         options={{
           title: 'Inventory',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📦" focused={focused} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View className={`p-1.5 rounded-xl ${focused ? 'bg-green-50' : 'bg-transparent'}`}>
+              <Package size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
+            </View>
+          ),
         }}
       />
+
+      {/* TAB 3: SHOP (Profile/Settings) */}
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Shop',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🏪" focused={focused} />,
+          title: 'My Shop',
+          tabBarIcon: ({ color, focused }) => (
+            <View className={`p-1.5 rounded-xl ${focused ? 'bg-green-50' : 'bg-transparent'}`}>
+              <Store size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
+            </View>
+          ),
         }}
       />
     </Tabs>

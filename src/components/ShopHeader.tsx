@@ -1,5 +1,7 @@
 import React from 'react';
-import { Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
+// 1. Import the specific icons you need
+import { Store } from 'lucide-react-native';
 
 interface ShopHeaderProps {
   title: string;
@@ -16,51 +18,72 @@ export function ShopHeader({
   notificationCount = 0,
   onNotificationPress,
 }: ShopHeaderProps) {
-  return (
-    <View className="px-6 py-4 bg-white border-b border-gray-100 shadow-sm z-10">
-      
-      {/* Top Row: Title + Notification Bell */}
-      <View className="flex-row justify-between items-center mb-4">
-        <View>
-          <Text className="text-3xl font-bold text-gray-900">{title}</Text>
-          <Text className="text-gray-400 text-xs font-medium uppercase tracking-widest mt-1">
-            {new Date().toDateString()}
-          </Text>
-        </View>
+  
+  const dateString = new Date().toDateString().toUpperCase();
 
-        {/* Notification Bell */}
-        <TouchableOpacity
+  return (
+    <View className="flex-row justify-between items-center px-5 py-3 bg-white border-b border-gray-200 shadow-sm z-10">
+      
+      {/* 1. Left Side: Title & Date */}
+      <View className="flex-1">
+        <Text className="text-xl font-extrabold text-gray-900 tracking-tight">
+          {title}
+        </Text>
+        <Text className="text-gray-400 text-[10px] font-bold tracking-widest mt-0.5">
+          {dateString}
+        </Text>
+      </View>
+
+      {/* 2. Right Side: Controls */}
+      <View className="flex-row items-center space-x-3">
+        
+        {/* === CUSTOM "PILL" TOGGLE === */}
+        <TouchableOpacity 
+          activeOpacity={0.9}
+          onPress={() => onToggleStore(!isStoreOnline)}
+        >
+          <View className={`w-28 h-9 rounded-full flex-row items-center px-1 border transition-all ${
+             isStoreOnline 
+               ? 'bg-green-500 border-green-600' 
+               : 'bg-gray-200 border-gray-300'
+          }`}>
+             
+             {/* Text Label */}
+             <Text className={`absolute w-full text-center text-[10px] font-bold tracking-widest ${
+               isStoreOnline ? 'text-white pr-6' : 'text-gray-500 pl-6'
+             }`}>
+               {isStoreOnline ? 'ONLINE' : 'OFFLINE'}
+             </Text>
+
+             {/* The Knob (Now with a Store Icon inside!) */}
+             <View className={`h-7 w-7 bg-white rounded-full shadow-sm items-center justify-center ${
+               isStoreOnline ? 'ml-auto' : 'mr-auto' 
+             }`}>
+                {/* Tiny icon inside the knob for polish */}
+                <Store size={14} color={isStoreOnline ? '#16A34A' : '#9CA3AF'} />
+             </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* === NOTIFICATION BELL (Lucide Icon) === */}
+        {/* Uncomment this when you are ready to use notifications */}
+        {/* <TouchableOpacity
           onPress={onNotificationPress}
           activeOpacity={0.7}
-          className="relative h-12 w-12 bg-gray-50 rounded-full items-center justify-center border border-gray-100"
+          className="relative h-10 w-10 bg-gray-50 rounded-full items-center justify-center border border-gray-200"
         >
-          <Text className="text-2xl">🔔</Text>
+          <Bell size={20} color="#374151" /> 
+          
           {notificationCount > 0 && (
-            <View className="absolute top-0 right-0 bg-red-500 h-5 w-5 rounded-full items-center justify-center border-2 border-white">
-              <Text className="text-white text-[10px] font-bold">
+            <View className="absolute top-0 right-0 bg-red-500 h-4 w-4 rounded-full items-center justify-center border border-white">
+              <Text className="text-white text-[9px] font-bold">
                 {notificationCount > 9 ? '9+' : notificationCount}
               </Text>
             </View>
           )}
-        </TouchableOpacity>
-      </View>
+        </TouchableOpacity>  */}
+       
 
-      {/* Bottom Row: Store Control Panel */}
-      <View className="flex-row items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-100">
-        <View className="flex-row items-center">
-          <View className={`h-3 w-3 rounded-full mr-2 ${isStoreOnline ? 'bg-green-500 shadow-green-500 shadow-sm' : 'bg-red-400'}`} />
-          <Text className={`font-bold ${isStoreOnline ? 'text-green-700' : 'text-red-500'}`}>
-            {isStoreOnline ? 'Accepting Orders' : 'Store is Closed'}
-          </Text>
-        </View>
-
-        <Switch
-          value={isStoreOnline}
-          onValueChange={onToggleStore}
-          trackColor={{ false: '#FEE2E2', true: '#DCFCE7' }}
-          thumbColor={isStoreOnline ? '#16A34A' : '#EF4444'}
-          ios_backgroundColor="#FEE2E2"
-        />
       </View>
     </View>
   );

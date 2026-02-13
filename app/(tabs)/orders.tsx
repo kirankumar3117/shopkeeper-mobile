@@ -3,106 +3,47 @@ import { OrderTabs } from '@/src/components/OrderTabs';
 import { ShopHeader } from '@/src/components/ShopHeader';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // MOCK DATA
 const MOCK_ORDERS = [
-  {
-    id: '#ORD-4921',
-    status: 'new',
-    time: '2min ago',
-    payment: 'Cash On Delivery',
-    total: '845.00',
-    items: [
-      { name: 'Aashirvaad Atta', qty: '5kg' },
-      { name: 'Freedom Oil', qty: '2L' },
-      { name: 'Freedom Oil', qty: '2L' },
-      { name: 'Freedom Oil', qty: '2L' },
-    ]
-  },
-  // 👇 ADDED: Test case for "Handwritten List" (Empty items array)
-  {
-    id: '#ORD-IMG-01',
-    status: 'new',
-    time: '5min ago',
-    payment: 'UPI Paid',
-    total: 'Calculating...', 
-    items: [] 
-  },
-  {
-    id: '#ORD-4922',
-    status: 'preparing',
-    time: '15min ago',
-    payment: 'UPI Paid',
-    total: '120.00',
-    items: [
-      { name: 'Milk', qty: '2 pkts' },
-      { name: 'Bread', qty: '1 pkt' },
-    ]
-  },
-  {
-    id: '#ORD-4920',
-    status: 'ready',
-    time: '45min ago',
-    payment: 'Cash',
-    total: '350.00',
-    items: [
-      { name: 'Rice', qty: '10kg' },
-    ]
-  }
+   // ... keep your mock data here ...
 ];
 
 export default function OrdersScreen() {
   const router = useRouter();
-  // State is 'all' by default
   const [activeTab, setActiveTab] = useState<'all' | 'preparing' | 'ready'>('all');
   const [orders, setOrders] = useState(MOCK_ORDERS);
+  
+  // 1. STATE: Default is true, but toggling this controls the view
   const [isStoreOnline, setStoreOnline] = useState(true);
 
   // --- FILTER & SORT LOGIC ---
   const getSortedOrders = () => {
     let filteredOrders = [];
-
     if (activeTab === 'all') {
-      // Show EVERYTHING
       filteredOrders = [...orders];
     } else {
-      // Show Selected Tab AND 'new' orders (Interruptive Priority)
       filteredOrders = orders.filter(o => o.status === activeTab || o.status === 'new');
     }
-
-    // Sort Order: New (1) -> Preparing (2) -> Ready (3)
     const statusOrder = { 'new': 1, 'preparing': 2, 'ready': 3 };
     filteredOrders.sort((a, b) => {
       return (statusOrder[a.status as keyof typeof statusOrder] || 99) - 
              (statusOrder[b.status as keyof typeof statusOrder] || 99);
     });
-
     return filteredOrders;
   };
 
   const displayedOrders = getSortedOrders();
 
-  // Counts Logic (All = Total Count)
   const getCounts = () => ({
     all: orders.length, 
     preparing: orders.filter(o => o.status === 'preparing').length,
     ready: orders.filter(o => o.status === 'ready').length,
   });
 
-  const handleAccept = (orderId: string) => {
-    setOrders(orders.map(o => o.id === orderId ? { ...o, status: 'preparing' } : o));
-  };
-
-  const handleStatusUpdate = (orderId: string, currentStatus: string) => {
-    const nextStatus = currentStatus === 'preparing' ? 'ready' : 'completed';
-    if(nextStatus === 'completed') {
-      setOrders(orders.filter(o => o.id !== orderId));
-    } else {
-      setOrders(orders.map(o => o.id === orderId ? { ...o, status: nextStatus as any } : o));
-    }
-  };
+  // ... handleAccept and handleStatusUpdate functions ...
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -122,21 +63,66 @@ export default function OrdersScreen() {
           counts={getCounts()} 
         />
 
-        <ScrollView className="flex-1 px-4 pt-2" showsVerticalScrollIndicator={false}>
-          {displayedOrders.length === 0 ? (
-            <View className="mt-20 items-center opacity-50">
-              <Text className="text-5xl mb-4">🥗</Text>
-              <Text className="text-gray-500 font-medium">No orders found</Text>
-            </View>
-          ) : (
-            displayedOrders.map((order, index) => {
-              // Header Logic: Show if this is the first item OR if status changed from previous item
-              const showHeader = index === 0 || order.status !== displayedOrders[index - 1].status;
+        <ScrollView 
+          className="flex-1 px-4 pt-2" 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ flexGrow: 1 }} 
+        >
+          {/* === LOGIC BRANCHING ===
+              1. If Store is OFFLINE -> Show "Closed" View
+              2. If Store is ONLINE but Empty -> Show "All Caught Up" View
+              3. If Store is ONLINE and has Orders -> Show List
+          */}
+
+          {!isStoreOnline ? (
+            // === 🔴 STORE CLOSED VIEW ===
+            <View className="flex-1 justify-center items-center pb-20">
+              <View className="bg-gray-100 p-8 rounded-full mb-6 border border-gray-200">
+                <Text className="text-6xl grayscale opacity-50">🔒</Text> 
+              </View>
               
+              <Text className="text-2xl font-bold text-gray-900 tracking-tight">
+                Store is Offline
+              </Text>
+              
+              <Text className="text-gray-400 text-center mt-2 px-10 leading-relaxed font-medium mb-8">
+                You are not receiving new orders. {"\n"}
+                Go online to start selling.
+              </Text>
+
+              {/* Big "GO ONLINE" Button */}
+              <TouchableOpacity 
+                onPress={() => setStoreOnline(true)}
+                activeOpacity={0.8}
+                className="bg-green-600 px-8 py-4 rounded-full shadow-lg shadow-green-200 flex-row items-center"
+              >
+                <Text className="text-white font-bold text-lg mr-2">Go Online Now</Text>
+                <Text className="text-white text-lg">🚀</Text>
+              </TouchableOpacity>
+            </View>
+
+          ) : displayedOrders.length === 0 ? (
+            // === 🟢 ONLINE BUT EMPTY VIEW ===
+            <View className="flex-1 justify-center items-center pb-20"> 
+              <View className="bg-green-50 p-8 rounded-full mb-6 border border-green-100 shadow-sm">
+                <Text className="text-6xl">🥗</Text> 
+              </View>
+              <Text className="text-2xl font-bold text-gray-900 tracking-tight">
+                All Caught Up!
+              </Text>
+              <Text className="text-gray-400 text-center mt-2 px-10 leading-relaxed font-medium">
+                No active orders in <Text className="text-green-600 font-bold capitalize">{activeTab}</Text> right now.
+                {"\n"}Time to organize the shelves?
+              </Text>
+            </View>
+
+          ) : (
+            // === 🟢 ORDER LIST VIEW ===
+            displayedOrders.map((order, index) => {
+              const showHeader = index === 0 || order.status !== displayedOrders[index - 1].status;
               return (
                 <View key={order.id}>
-                  
-                  {/* DYNAMIC HEADER */}
+                  {/* ... (Existing List Rendering Logic) ... */}
                   {showHeader && (
                     <View className="flex-row items-center py-4 mt-2">
                       <View className="flex-1 h-[1px] bg-gray-300" />
@@ -161,8 +147,7 @@ export default function OrdersScreen() {
                       pathname: "/order-details/[id]",
                       params: { id: order.id } 
                     })}
-                    onAccept={() => handleAccept(order.id)}
-                    onStatusUpdate={() => handleStatusUpdate(order.id, order.status)}
+                    // Pass props...
                   />
                 </View>
               );
