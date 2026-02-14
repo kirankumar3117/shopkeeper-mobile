@@ -3,6 +3,7 @@ import { OrderTabs } from '@/src/components/OrderTabs';
 import { ShopHeader } from '@/src/components/ShopHeader';
 import { useOrderStore } from '@/src/core/orderStore'; // 👈 IMPORT STORE
 import { useRouter } from 'expo-router';
+import { Moon, Power, Store } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -71,10 +72,50 @@ export default function OrdersScreen() {
           contentContainerStyle={{ flexGrow: 1 }} 
         >
           {!isStoreOnline ? (
-             <View className="flex-1 justify-center items-center pb-20">
-               <Text>Store Offline</Text>
-               <TouchableOpacity onPress={() => setStoreOnline(true)}><Text>Go Online</Text></TouchableOpacity>
-             </View>
+            <View className="flex-1 justify-center items-center bg-gray-50 px-8">
+  
+  {/* 1. Pulse Animation / Icon Container */}
+  <View className="items-center justify-center mb-8">
+    {/* Outer Ring */}
+    <View className="w-40 h-40 bg-gray-200 rounded-full items-center justify-center opacity-50 absolute" />
+    {/* Inner Circle */}
+    <View className="w-32 h-32 bg-white rounded-full items-center justify-center shadow-sm elevation-5">
+      <Store size={56} color="#9CA3AF" />
+      {/* Status Badge */}
+      <View className="absolute bottom-2 right-2 bg-gray-500 w-8 h-8 rounded-full border-4 border-white items-center justify-center">
+        <Moon size={14} color="white" strokeWidth={3} />
+      </View>
+    </View>
+  </View>
+
+  {/* 2. Status Text */}
+  <Text className="text-3xl font-bold text-gray-900 mb-3">
+    You're Offline
+  </Text>
+  <Text className="text-gray-500 text-center text-base mb-10 leading-6 px-4">
+    Your shop is currently closed to customers. Go online to start receiving new orders.
+  </Text>
+
+  {/* 3. "Go Online" Button */}
+  <TouchableOpacity 
+    onPress={() => setStoreOnline(true)}
+    activeOpacity={0.8}
+    className="w-full bg-green-600 py-4 rounded-2xl flex-row items-center justify-center shadow-lg shadow-green-200"
+    style={{ 
+      elevation: 6, 
+      shadowColor: '#10B981', 
+      shadowOffset: { width: 0, height: 4 }, 
+      shadowOpacity: 0.3, 
+      shadowRadius: 8 
+    }}
+  >
+    <Power size={22} color="white" strokeWidth={2.5} />
+    <Text className="text-white font-bold text-lg ml-3 tracking-wide">
+      GO ONLINE
+    </Text>
+  </TouchableOpacity>
+
+</View>
           ) : displayedOrders.length === 0 ? (
              <View className="flex-1 justify-center items-center pb-20"> 
                <Text className="text-2xl font-bold text-gray-900">All Caught Up!</Text>

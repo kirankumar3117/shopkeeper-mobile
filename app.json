@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Kart Mithra",
-    "slug": "KARTMITHRA",
+    "slug": "SmartKirana",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -9,9 +9,9 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/icon.png", 
+      "image": "./assets/images/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#10B981" 
+      "backgroundColor": "#10B981"
     },
     "ios": {
       "supportsTablet": true,
@@ -19,7 +19,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png", 
+        "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#10B981"
       },
       "edgeToEdgeEnabled": true,
@@ -42,6 +42,7 @@
       "eas": {
         "projectId": "2815f81d-141f-4991-9968-e0734d1e543b"
       }
-    }
+    },
+    "owner": "kirankumar3117"
   }
 }
