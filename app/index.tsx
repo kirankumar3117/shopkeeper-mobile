@@ -21,7 +21,7 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   
   // 👇 UPDATE: Get the new action from the store
-  const { setPhoneNumber, setVerifyPurpose } = useAuthStore();
+  const { setPhoneNumber, setVerifyPurpose, setVerificationMethod } = useAuthStore();
   
   const [mobile, setMobile] = useState('7585896585');
   const [error, setError] = useState('');
@@ -37,6 +37,7 @@ export default function LoginScreen() {
 
     // 2. 👇 CRITICAL: Tell the store we are "Logging In"
     setVerifyPurpose('login');
+    setVerificationMethod('otp');
     
     setError('');
 

@@ -8,6 +8,7 @@ interface AuthState {
   
   // 👇 NEW: Track why we are on the Verify Screen
   verifyPurpose: 'login' | 'register'; 
+  verificationMethod: 'otp' | 'agent';
 
   setPhoneNumber: (phone: string) => void;
   login: () => void;
@@ -18,6 +19,7 @@ interface AuthState {
 
   // 👇 NEW: Action to update the purpose
   setVerifyPurpose: (purpose: 'login' | 'register') => void;
+  setVerificationMethod: (method: 'otp' | 'agent') => void;
 }
 
 // Create the Store
@@ -25,6 +27,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   phoneNumber: '',
   isAuthenticated: false,
   ownerPin: null, 
+  verificationMethod: 'otp',
   
   // 👇 Default to 'login' to be safe
   verifyPurpose: 'login', 
@@ -51,4 +54,5 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   // 👇 The new action we will use in Login/Register screens
   setVerifyPurpose: (purpose) => set({ verifyPurpose: purpose }),
+  setVerificationMethod: (method) => set({ verificationMethod: method }),
 }));
