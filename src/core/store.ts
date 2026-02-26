@@ -1,5 +1,5 @@
 import { clearAllTokens } from '@/src/core/api/tokenStorage';
-import type { OnboardingStep, User } from '@/src/core/api/types';
+import type { OnboardingStep, ShopStatus, User } from '@/src/core/api/types';
 import { create } from 'zustand';
 
 // Define the shape of our "Brain"
@@ -8,18 +8,16 @@ interface AuthState {
   isAuthenticated: boolean;
   ownerPin: string | null; 
   
-  // Track why we are on the Verify Screen
-  verifyPurpose: 'login' | 'register'; 
-  verificationMethod: 'otp' | 'agent';
-
   // API integration fields
   token: string | null;
   user: User | null;
 
-  // Onboarding tracking
+  // Progressive onboarding tracking
   shopId: string | null;
+  shopStatus: ShopStatus | null;
   onboardingStep: OnboardingStep | null;
 
+  // Actions
   setPhoneNumber: (phone: string) => void;
   login: () => void;
   logout: () => void;
@@ -27,13 +25,10 @@ interface AuthState {
   setOwnerPin: (pin: string | null) => void;
   verifyPin: (inputPin: string) => boolean;
 
-  setVerifyPurpose: (purpose: 'login' | 'register') => void;
-  setVerificationMethod: (method: 'otp' | 'agent') => void;
-
-  // API integration actions
   setToken: (token: string | null) => void;
   setUser: (user: User | null) => void;
   setShopId: (id: string | null) => void;
+  setShopStatus: (status: ShopStatus | null) => void;
   setOnboardingStep: (step: OnboardingStep | null) => void;
 }
 
@@ -42,31 +37,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   phoneNumber: '',
   isAuthenticated: false,
   ownerPin: null, 
-  verificationMethod: 'agent',  // Agent code is the default for this app
   token: null,
   user: null,
   shopId: null,
+  shopStatus: null,
   onboardingStep: null,
-  
-  // 👇 Default to 'login' to be safe
-  verifyPurpose: 'login', 
   
   // Actions
   setPhoneNumber: (phone) => set({ phoneNumber: phone }),
   
   login: () => set({ isAuthenticated: true }),
   
-  // Update logout to clear everything (including secure tokens)
   logout: () => {
-    clearAllTokens(); // Clear from secure storage
+    clearAllTokens();
     set({ 
       phoneNumber: '', 
       isAuthenticated: false, 
       ownerPin: null, 
-      verifyPurpose: 'login',
       token: null,
       user: null,
       shopId: null,
+      shopStatus: null,
       onboardingStep: null,
     });
   },
@@ -78,11 +69,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return ownerPin === inputPin;
   },
 
-  setVerifyPurpose: (purpose) => set({ verifyPurpose: purpose }),
-  setVerificationMethod: (method) => set({ verificationMethod: method }),
-
   setToken: (token) => set({ token }),
   setUser: (user) => set({ user }),
   setShopId: (shopId) => set({ shopId }),
+  setShopStatus: (shopStatus) => set({ shopStatus }),
   setOnboardingStep: (onboardingStep) => set({ onboardingStep }),
 }));

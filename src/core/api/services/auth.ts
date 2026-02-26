@@ -7,7 +7,10 @@ import { apiClient } from '../client';
 import type {
   ApiResponse,
   AuthResponse,
+  CheckStatusResponse,
   LoginRequest,
+  LoginWithPinRequest,
+  SetPinRequest,
   VerifyAgentCodeRequest,
   VerifyOtpRequest,
 } from '../types';
@@ -57,5 +60,37 @@ export const authService = {
       `${AUTH_BASE}/refresh`,
       { refresh_token: refreshToken },
       { skipAuth: true }
+    ),
+
+  /**
+   * Check phone number status for progressive onboarding
+   * POST /auth/check-status
+   */
+  checkStatus: (phone: string) =>
+    apiClient.post<ApiResponse<CheckStatusResponse>>(
+      `${AUTH_BASE}/check-status`,
+      { phone } as LoginRequest,
+      { skipAuth: true }
+    ),
+
+  /**
+   * Login with PIN (returning users)
+   * POST /auth/login-pin
+   */
+  loginWithPin: (phone: string, pin: string) =>
+    apiClient.post<ApiResponse<AuthResponse>>(
+      `${AUTH_BASE}/login-pin`,
+      { phone, pin } as LoginWithPinRequest,
+      { skipAuth: true }
+    ),
+
+  /**
+   * Set 4-digit PIN after verification (requires auth)
+   * POST /auth/set-pin
+   */
+  setPin: (pin: string) =>
+    apiClient.post<ApiResponse<{ message: string; onboarding_step: string }>>(
+      `${AUTH_BASE}/set-pin`,
+      { pin } as SetPinRequest,
     ),
 };

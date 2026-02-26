@@ -69,7 +69,29 @@ export class ApiError extends Error {
 
 // ─── Auth Types ──────────────────────────────────────────
 
-export type OnboardingStep = 'registered' | 'verified' | 'completed';
+export type OnboardingStep = 'registered' | 'verified' | 'pin_set' | 'completed';
+
+/** Possible statuses returned by check-status */
+export type ShopStatus = 'new_user' | 'registered' | 'verified' | 'pin_set' | 'active';
+
+/** Response from POST /auth/check-status */
+export interface CheckStatusResponse {
+  status: ShopStatus;
+  shop_id: string | null;
+  shop_name: string | null;
+  phone: string;
+}
+
+/** Request for POST /auth/login-pin */
+export interface LoginWithPinRequest {
+  phone: string;
+  pin: string;
+}
+
+/** Request for POST /auth/set-pin */
+export interface SetPinRequest {
+  pin: string;
+}
 
 export interface AuthTokens {
   access_token: string;

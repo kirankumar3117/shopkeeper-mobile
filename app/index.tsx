@@ -1,9 +1,12 @@
 import { Input } from '@/src/components/ui/Input';
+import { authService } from '@/src/core/api/services/auth';
+import { ApiError } from '@/src/core/api/types';
 import { useAuthStore } from '@/src/core/store';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -16,33 +19,65 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function LoginScreen() {
+export default function PhoneEntryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   
-  // 👇 UPDATE: Get the new action from the store
-  const { setPhoneNumber, setVerifyPurpose, setVerificationMethod } = useAuthStore();
+  const { setPhoneNumber, setShopStatus, setShopId } = useAuthStore();
   
-  const [mobile, setMobile] = useState('7585896585');
+  const [mobile, setMobile] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [register, setRegister] = useState(false);
 
-  const handleSendOTP = () => {
-    if (mobile.length < 10) {
+  const handleContinue = async () => {
+    if (mobile.length !== 10) {
       setError('Please enter a valid 10-digit mobile number');
       return;
     }
 
-    // 1. Save Phone Number to Store
-    setPhoneNumber(mobile);
-
-    // 2. 👇 CRITICAL: Tell the store we are "Logging In"
-    setVerifyPurpose('login');
-    setVerificationMethod('otp');
-    
+    setIsLoading(true);
     setError('');
 
-    // 3. Navigate (No params needed anymore!)
-    router.push('/verify');
+    try {
+      // Call check-status endpoint
+      const response = await authService.checkStatus(mobile);
+      const { status, shop_id } = response.data;
+
+      // Save to store
+      setPhoneNumber(mobile);
+      setShopStatus(status);
+      if (shop_id) setShopId(shop_id);
+
+      // Dynamic routing based on status
+      switch (status) {
+        case 'new_user':
+          router.push('/register');
+          break;
+        case 'registered':
+          router.push('/verify');
+          break;
+        case 'verified':
+          router.push('/set-pin');
+          break;
+        case 'pin_set':
+          router.push('/shop-setup');
+          break;
+        case 'active':
+          router.push('/login');
+          break;
+        default:
+          router.push('/register');
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('Unable to connect. Please check your network.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -82,7 +117,7 @@ export default function LoginScreen() {
                 </Text>
               </View>
 
-              {/* --- LOGIN FORM --- */}
+              {/* --- PHONE FORM --- */}
               <View className="space-y-6">
                 <View>
                   <Input 
@@ -100,21 +135,34 @@ export default function LoginScreen() {
                 </View>
 
                 <TouchableOpacity 
-                  onPress={handleSendOTP}
+                  onPress={handleContinue}
                   activeOpacity={0.8}
-                  className="w-full bg-green-600 py-4 rounded-xl items-center shadow-lg shadow-green-200 mt-4"
+                  disabled={isLoading}
+                  className={`w-full py-4 rounded-xl items-center shadow-lg shadow-green-200 mt-4 ${
+                    isLoading ? 'bg-green-400' : 'bg-green-600'
+                  }`}
                 >
-                  <Text className="text-white font-bold text-lg">
-                    Send OTP
-                  </Text>
+                  {isLoading ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text className="text-white font-bold text-lg">
+                      {register ? "Register" : "Login"}
+                    </Text>
+                  )}
                 </TouchableOpacity>
               </View>
 
               {/* --- FOOTER --- */}
               <View className="mt-12 items-center flex-row justify-center">
-                <Text className="text-gray-500">New to Kart Mithra? </Text>
-                <TouchableOpacity onPress={() => router.push('/register')}>
-                  <Text className="text-green-700 font-bold">Register Shop</Text>
+               <Text className="text-gray-500">{!register ? "New to Kart Mithra? " : "Already have an account? "} </Text>
+                <TouchableOpacity onPress={() => {
+                  if (mobile.length === 10) setPhoneNumber(mobile);
+                  setRegister(!register);
+
+                }}>
+                  <Text className="text-green-700 font-bold">{
+                    register ? "Login" : "Register Shop"
+                    }</Text>
                 </TouchableOpacity>
               </View>
             </View>

@@ -22,53 +22,27 @@ export default function VerifyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   
-  // Read from Store
   const { 
-    login, 
-    setVerificationMethod, 
-    setOnboardingStep,
+    phoneNumber,
     setToken: storeSetToken,
     setUser,
-    phoneNumber, 
-    verifyPurpose, 
-    verificationMethod 
+    setOnboardingStep,
   } = useAuthStore();
 
-  const isRegistration = verifyPurpose === 'register';
-
+  // Default to agent code verification
+  const [method, setMethod] = useState<'agent' | 'otp'>('agent');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Stable Switcher
   const switchMode = (newMode: 'otp' | 'agent') => {
     Keyboard.dismiss(); 
     const timer = setTimeout(() => {
-      setVerificationMethod(newMode);
+      setMethod(newMode);
       setCode(''); 
       setError('');
     }, 100);
     return () => clearTimeout(timer); 
-  };
-
-  const handleSuccess = (onboardingStep: string) => {
-    login();
-    
-    // Navigate based on onboarding progress
-    if (onboardingStep === 'verified') {
-      // Step 2 done → go to shop setup (Step 3)
-      router.replace('/shop-setup');
-    } else if (onboardingStep === 'completed') {
-      // Fully onboarded → go to main app
-      router.replace('/(tabs)/orders');
-    } else {
-      // Fallback: registration flow → shop setup
-      if (isRegistration) {
-        router.replace('/shop-setup');
-      } else {
-        router.replace('/(tabs)/orders');
-      }
-    }
   };
 
   const handleVerify = async () => {
@@ -76,7 +50,7 @@ export default function VerifyScreen() {
     const cleanCode = code.trim();
 
     if (!cleanCode) {
-      setError(verificationMethod === 'otp' ? 'Please enter the OTP' : 'Please enter the Agent Code');
+      setError(method === 'otp' ? 'Please enter the OTP' : 'Please enter the Agent Code');
       return;
     }
 
@@ -85,27 +59,25 @@ export default function VerifyScreen() {
     try {
       let response;
 
-      if (verificationMethod === 'otp') {
-        // POST /api/v1/auth/verify-otp
+      if (method === 'otp') {
         response = await authService.verifyOtp(phoneNumber, cleanCode);
       } else {
-        // POST /api/v1/auth/verify-agent  
         response = await authService.verifyAgentCode(phoneNumber, cleanCode);
       }
 
       const { tokens, user, onboarding_step } = response.data;
 
-      // 1. Store tokens securely
+      // Store tokens
       await setToken(tokens.access_token);
       await setRefreshToken(tokens.refresh_token);
 
-      // 2. Update Zustand store
+      // Update store
       storeSetToken(tokens.access_token);
       setUser(user);
       setOnboardingStep(onboarding_step);
 
-      // 3. Navigate based on onboarding progress
-      handleSuccess(onboarding_step);
+      // After verification → go to PIN generation
+      router.replace('/set-pin');
     } catch (err) {
       console.log(err);
       if (err instanceof ApiError) {
@@ -134,60 +106,58 @@ export default function VerifyScreen() {
           className="mb-8 flex-row items-center mt-2"
         >
           <ArrowLeft size={24} color="#4B5563" />
-          <Text className="text-lg text-gray-600 ml-2">Change Number</Text>
+          <Text className="text-lg text-gray-600 ml-2">Back</Text>
         </TouchableOpacity>
 
-        {/* Title Section */}
+        {/* Title */}
         <View className="mb-8">
           <Text className="text-3xl font-bold text-gray-900 mb-2">
-            {verificationMethod === 'otp' ? 'Enter OTP' : 'Agent Code'}
+            {method === 'otp' ? 'Enter OTP' : 'Agent Verification'}
           </Text>
           <Text className="text-gray-500 text-base leading-6">
-            {verificationMethod === 'otp' 
-              ? `We sent a 4-digit code to +91 ${phoneNumber || '******'}` 
-              : 'Enter the unique code provided by your field agent to activate your account.'}
+            {method === 'otp' 
+              ? `We sent a 4-digit code to +91 ${phoneNumber}` 
+              : 'Enter the code from your Kart Mithra field agent to activate your shop.'}
           </Text>
         </View>
 
-        {/* Toggle Switch (Registration Only) */}
-        {isRegistration && (
-          <View className="flex-row bg-gray-100 p-1 rounded-xl mb-8">
-            <TouchableOpacity 
-              onPress={() => switchMode('agent')}
-              className="flex-1 py-3 rounded-lg items-center"
-              style={verificationMethod === 'agent' ? styles.activeTab : null}
-            >
-              <Text className={`font-bold ${verificationMethod === 'agent' ? 'text-green-600' : 'text-gray-500'}`}>
-                Agent Code
-              </Text>
-            </TouchableOpacity>
+        {/* Toggle: Agent Code / OTP */}
+        <View className="flex-row bg-gray-100 p-1 rounded-xl mb-8">
+          <TouchableOpacity 
+            onPress={() => switchMode('agent')}
+            className="flex-1 py-3 rounded-lg items-center"
+            style={method === 'agent' ? styles.activeTab : null}
+          >
+            <Text className={`font-bold ${method === 'agent' ? 'text-green-600' : 'text-gray-500'}`}>
+              Agent Code
+            </Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity 
-              onPress={() => switchMode('otp')}
-              className="flex-1 py-3 rounded-lg items-center"
-              style={verificationMethod === 'otp' ? styles.activeTab : null}
-            >
-              <Text className={`font-bold ${verificationMethod === 'otp' ? 'text-green-600' : 'text-gray-500'}`}>
-                SMS OTP
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
+          <TouchableOpacity 
+            onPress={() => switchMode('otp')}
+            className="flex-1 py-3 rounded-lg items-center"
+            style={method === 'otp' ? styles.activeTab : null}
+          >
+            <Text className={`font-bold ${method === 'otp' ? 'text-green-600' : 'text-gray-500'}`}>
+              SMS OTP
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-        {/* Input Field */}
+        {/* Code Input */}
         <TextInput 
-          key={verificationMethod}
+          key={method}
           className={`w-full bg-gray-50 border rounded-xl p-5 text-center text-2xl tracking-widest font-bold ${
             error ? 'border-red-500 bg-red-50' : 'border-green-500 bg-white'
           }`}
-          placeholder={verificationMethod === 'otp' ? "• • • •" : "AGENT CODE"}
+          placeholder={method === 'otp' ? "• • • •" : "AGENT CODE"}
           placeholderTextColor="#9CA3AF"
-          keyboardType={verificationMethod === 'otp' ? "number-pad" : "default"} 
-          maxLength={verificationMethod === 'otp' ? 4 : 20}
+          keyboardType={method === 'otp' ? "number-pad" : "default"} 
+          maxLength={method === 'otp' ? 4 : 20}
           value={code}
           onChangeText={(text) => {
             setCode(text);
-            if(error) setError('');
+            if (error) setError('');
           }}
           autoCapitalize="characters"
           editable={!isLoading}
@@ -209,19 +179,17 @@ export default function VerifyScreen() {
             <ActivityIndicator color="white" />
           ) : (
             <Text className="text-white font-bold text-lg">
-              {verificationMethod === 'otp' ? 'Verify & Login' : 'Verify Agent'}
+              Verify & Continue
             </Text>
           )}
         </TouchableOpacity>
 
-        {/* Resend Link (OTP only) */}
-        {verificationMethod === 'otp' && !isLoading && (
+        {/* Resend (OTP only) */}
+        {method === 'otp' && !isLoading && (
           <TouchableOpacity 
             className="mt-6 items-center p-2"
             onPress={async () => {
-              try {
-                await authService.sendOtp(phoneNumber);
-              } catch {}
+              try { await authService.sendOtp(phoneNumber); } catch {}
             }}
           >
             <Text className="text-gray-500">
@@ -235,7 +203,6 @@ export default function VerifyScreen() {
   );
 }
 
-// --- SAFE STYLES (Bypasses NativeWind Bug) ---
 const styles = StyleSheet.create({
   activeTab: {
     backgroundColor: 'white',

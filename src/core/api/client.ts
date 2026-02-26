@@ -91,8 +91,25 @@ async function request<T>(
 
     // Handle error responses
     if (!response.ok) {
+      // FastAPI validation errors return `detail` as an array of objects,
+      // e.g. [{ loc: [...], msg: "...", type: "..." }]
+      // Naively doing `data?.detail` would produce "[Object Object]"
+      let errorMessage: string;
+      if (typeof data?.detail === 'string') {
+        errorMessage = data.detail;
+      } else if (Array.isArray(data?.detail)) {
+        // Extract the human-readable msg from each validation error
+        errorMessage = data.detail
+          .map((e: any) => e?.msg ?? JSON.stringify(e))
+          .join(', ');
+      } else if (typeof data?.message === 'string') {
+        errorMessage = data.message;
+      } else {
+        errorMessage = `Request failed with status ${response.status}`;
+      }
+
       throw new ApiError(
-        data?.message || data?.detail || `Request failed with status ${response.status}`,
+        errorMessage,
         response.status,
         data?.code,
         data?.details
