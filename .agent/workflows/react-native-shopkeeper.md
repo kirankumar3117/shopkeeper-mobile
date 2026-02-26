@@ -52,3 +52,15 @@ All business logic lives in `src/`. All navigation lives in `app/`.
 - **Cache Issues:** If you change `babel.config.js` or `tailwind.config.js`, you MUST restart with:
   `npx expo start -c`
 - **Layout Imports:** The `_layout.tsx` file must ONLY contain `<Stack>` or `<Tabs>` components. Do not render custom UI inside the return statement of the root layout.
+
+## 7. API Architecture
+- **HTTP Client:** `src/core/api/client.ts` — thin `fetch()` wrapper with auth, timeout, and error handling.
+- **Config:** `src/core/api/config.ts` — `API_CONFIG` with `BASE_URL`, `TIMEOUT`, default headers.
+- **Token Storage:** `src/core/api/tokenStorage.ts` — secure JWT persistence via `expo-secure-store`.
+- **Types:** `src/core/api/types.ts` — all shared DTOs, response wrappers, and `ApiError` class.
+- **Services:** `src/core/api/services/` — domain-specific modules (`auth`, `inventory`, `orders`, `shop`).
+- **Hooks:** `src/core/hooks/` — React hooks wrapping services with loading/error state (`useApi`, `useAuth`, `useInventory`, `useOrders`).
+- **Import Pattern:**
+  - ✅ `import { authService, ApiError } from '@/src/core/api';`
+  - ✅ `import { useAuth } from '@/src/core/hooks/useAuth';`
+  - ✅ `import { useApi } from '@/src/core/hooks/useApi';`

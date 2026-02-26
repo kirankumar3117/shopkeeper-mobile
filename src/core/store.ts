@@ -1,3 +1,5 @@
+import { clearAllTokens } from '@/src/core/api/tokenStorage';
+import type { User } from '@/src/core/api/types';
 import { create } from 'zustand';
 
 // Define the shape of our "Brain"
@@ -6,9 +8,13 @@ interface AuthState {
   isAuthenticated: boolean;
   ownerPin: string | null; 
   
-  // 👇 NEW: Track why we are on the Verify Screen
+  // Track why we are on the Verify Screen
   verifyPurpose: 'login' | 'register'; 
   verificationMethod: 'otp' | 'agent';
+
+  // API integration fields
+  token: string | null;
+  user: User | null;
 
   setPhoneNumber: (phone: string) => void;
   login: () => void;
@@ -17,9 +23,12 @@ interface AuthState {
   setOwnerPin: (pin: string | null) => void;
   verifyPin: (inputPin: string) => boolean;
 
-  // 👇 NEW: Action to update the purpose
   setVerifyPurpose: (purpose: 'login' | 'register') => void;
   setVerificationMethod: (method: 'otp' | 'agent') => void;
+
+  // API integration actions
+  setToken: (token: string | null) => void;
+  setUser: (user: User | null) => void;
 }
 
 // Create the Store
@@ -28,6 +37,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   ownerPin: null, 
   verificationMethod: 'otp',
+  token: null,
+  user: null,
   
   // 👇 Default to 'login' to be safe
   verifyPurpose: 'login', 
@@ -37,13 +48,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   
   login: () => set({ isAuthenticated: true }),
   
-  // Update logout to clear everything
-  logout: () => set({ 
-    phoneNumber: '', 
-    isAuthenticated: false, 
-    ownerPin: null, 
-    verifyPurpose: 'login' 
-  }),
+  // Update logout to clear everything (including secure tokens)
+  logout: () => {
+    clearAllTokens(); // Clear from secure storage
+    set({ 
+      phoneNumber: '', 
+      isAuthenticated: false, 
+      ownerPin: null, 
+      verifyPurpose: 'login',
+      token: null,
+      user: null,
+    });
+  },
   
   setOwnerPin: (pin) => set({ ownerPin: pin }),
   
@@ -52,7 +68,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return ownerPin === inputPin;
   },
 
-  // 👇 The new action we will use in Login/Register screens
   setVerifyPurpose: (purpose) => set({ verifyPurpose: purpose }),
   setVerificationMethod: (method) => set({ verificationMethod: method }),
+
+  // API integration actions
+  setToken: (token) => set({ token }),
+  setUser: (user) => set({ user }),
 }));
