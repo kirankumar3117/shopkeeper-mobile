@@ -56,8 +56,8 @@ export function useAuth(): UseAuthReturn {
       const { tokens } = response.data;
 
       // Persist tokens securely
-      await setToken(tokens.accessToken);
-      await setRefreshToken(tokens.refreshToken);
+      await setToken(tokens.access_token);
+      await setRefreshToken(tokens.refresh_token);
 
       // Update Zustand store
       login();
@@ -78,8 +78,8 @@ export function useAuth(): UseAuthReturn {
       const response = await authService.verifyAgentCode(phone, agentCode);
       const { tokens } = response.data;
 
-      await setToken(tokens.accessToken);
-      await setRefreshToken(tokens.refreshToken);
+      await setToken(tokens.access_token);
+      await setRefreshToken(tokens.refresh_token);
 
       login();
       return true;

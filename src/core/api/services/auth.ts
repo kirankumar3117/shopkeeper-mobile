@@ -5,11 +5,11 @@
 
 import { apiClient } from '../client';
 import type {
-    ApiResponse,
-    AuthResponse,
-    LoginRequest,
-    VerifyAgentCodeRequest,
-    VerifyOtpRequest,
+  ApiResponse,
+  AuthResponse,
+  LoginRequest,
+  VerifyAgentCodeRequest,
+  VerifyOtpRequest,
 } from '../types';
 
 const AUTH_BASE = '/auth';
@@ -44,7 +44,7 @@ export const authService = {
   verifyAgentCode: (phone: string, agentCode: string) =>
     apiClient.post<ApiResponse<AuthResponse>>(
       `${AUTH_BASE}/verify-agent`,
-      { phone, agentCode } as VerifyAgentCodeRequest,
+      { phone, agent_code: agentCode } as VerifyAgentCodeRequest,
       { skipAuth: true }
     ),
 
@@ -55,7 +55,7 @@ export const authService = {
   refreshToken: (refreshToken: string) =>
     apiClient.post<ApiResponse<AuthResponse>>(
       `${AUTH_BASE}/refresh`,
-      { refreshToken },
+      { refresh_token: refreshToken },
       { skipAuth: true }
     ),
 };

@@ -1,17 +1,19 @@
 import { Input } from '@/src/components/ui/Input';
+import { shopService } from '@/src/core/api/services/shop';
+import { ApiError } from '@/src/core/api/types';
+import { useAuthStore } from '@/src/core/store';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-// 1. Import the Store
-import { useAuthStore } from '@/src/core/store';
 import { ArrowLeft } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -19,27 +21,27 @@ export default function RegisterScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   
-  // 2. Get the actions from the Store
-  const { setPhoneNumber, setVerifyPurpose } = useAuthStore();
+  // Store actions
+  const { setPhoneNumber, setVerifyPurpose, setShopId, setOnboardingStep } = useAuthStore();
   
   // --- FORM STATE ---
-  const [shopName, setShopName] = useState('Sai Ganesh & Generals');
-  const [ownerName, setOwnerName] = useState('Sai Ganesh');
-  const [mobile, setMobile] = useState('7585896585');
-  const [email, setEmail] = useState('sai@gmail.com');
+  const [shopName, setShopName] = useState('');
+  const [ownerName, setOwnerName] = useState('');
+  const [mobile, setMobile] = useState('');
+  const [email, setEmail] = useState('');
   const [referral, setReferral] = useState('');
   
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState('');
 
-  const handleRegister = () => {
-    // 1. VALIDATION LOGIC
+  const handleRegister = async () => {
+    // 1. VALIDATION
     let newErrors: { [key: string]: string } = {};
     
     if (shopName.trim().length < 3) newErrors.shopName = "Shop name is too short";
     if (ownerName.trim().length < 3) newErrors.ownerName = "Please enter full name";
     if (mobile.length !== 10) newErrors.mobile = "Enter valid 10-digit number";
-    
-    // Email is optional, but if entered, validate simple format
     if (email && !email.includes('@')) newErrors.email = "Invalid email address";
 
     if (Object.keys(newErrors).length > 0) {
@@ -47,13 +49,38 @@ export default function RegisterScreen() {
       return;
     }
 
-    // 2. SUCCESS -> UPDATE STORE & NAVIGATE
-    // We save data to the global store so VerifyScreen can read it safely
-    setPhoneNumber(mobile);
-    setVerifyPurpose('register'); // <--- Critical: Tell store we are registering
+    // 2. CALL API → POST /api/v1/shops/register
+    setIsLoading(true);
+    setApiError('');
 
-    // 3. Navigate (No params needed anymore!)
-    router.push('/verify');
+    try {
+      const response = await shopService.registerShop({
+        shop_name: shopName.trim(),
+        owner_name: ownerName.trim(),
+        phone: mobile,
+        email: email || undefined,
+        referral_code: referral || undefined,
+      });
+
+      const { shop_id, onboarding_step } = response.data;
+
+      // 3. SAVE TO STORE
+      setPhoneNumber(mobile);
+      setShopId(shop_id);
+      setOnboardingStep(onboarding_step);
+      setVerifyPurpose('register');
+
+      // 4. NAVIGATE TO VERIFY
+      router.push('/verify');
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setApiError(err.message);
+      } else {
+        setApiError('Something went wrong. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -89,6 +116,13 @@ export default function RegisterScreen() {
             </Text>
           </View>
 
+          {/* --- API ERROR BANNER --- */}
+          {apiError ? (
+            <View className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+              <Text className="text-red-700 font-medium text-sm">{apiError}</Text>
+            </View>
+          ) : null}
+
           {/* --- FORM FIELDS --- */}
           <View className="space-y-5">
             
@@ -96,7 +130,7 @@ export default function RegisterScreen() {
               label="Shop Name"
               placeholder="e.g. Sri Lakshmi Kirana"
               value={shopName}
-              onChangeText={setShopName}
+              onChangeText={(text) => { setShopName(text); if (errors.shopName) setErrors(prev => ({...prev, shopName: ''})); }}
               error={errors.shopName}
               autoCapitalize="words"
             />
@@ -105,7 +139,7 @@ export default function RegisterScreen() {
               label="Shopkeeper Owner Name"
               placeholder="e.g. Kiran Kumar"
               value={ownerName}
-              onChangeText={setOwnerName}
+              onChangeText={(text) => { setOwnerName(text); if (errors.ownerName) setErrors(prev => ({...prev, ownerName: ''})); }}
               error={errors.ownerName}
               autoCapitalize="words"
             />
@@ -116,7 +150,7 @@ export default function RegisterScreen() {
               keyboardType="phone-pad"
               maxLength={10}
               value={mobile}
-              onChangeText={setMobile}
+              onChangeText={(text) => { setMobile(text); if (errors.mobile) setErrors(prev => ({...prev, mobile: ''})); }}
               error={errors.mobile}
             />
 
@@ -143,11 +177,16 @@ export default function RegisterScreen() {
               <TouchableOpacity 
                 onPress={handleRegister}
                 activeOpacity={0.8}
-                className="w-full bg-green-600 py-4 rounded-xl items-center shadow-lg shadow-green-200"
+                disabled={isLoading}
+                className={`w-full py-4 rounded-xl items-center shadow-lg shadow-green-200 ${isLoading ? 'bg-green-400' : 'bg-green-600'}`}
               >
-                <Text className="text-white font-bold text-lg tracking-wide">
-                  Continue
-                </Text>
+                {isLoading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text className="text-white font-bold text-lg tracking-wide">
+                    Continue
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
 

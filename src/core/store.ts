@@ -1,5 +1,5 @@
 import { clearAllTokens } from '@/src/core/api/tokenStorage';
-import type { User } from '@/src/core/api/types';
+import type { OnboardingStep, User } from '@/src/core/api/types';
 import { create } from 'zustand';
 
 // Define the shape of our "Brain"
@@ -16,6 +16,10 @@ interface AuthState {
   token: string | null;
   user: User | null;
 
+  // Onboarding tracking
+  shopId: string | null;
+  onboardingStep: OnboardingStep | null;
+
   setPhoneNumber: (phone: string) => void;
   login: () => void;
   logout: () => void;
@@ -29,6 +33,8 @@ interface AuthState {
   // API integration actions
   setToken: (token: string | null) => void;
   setUser: (user: User | null) => void;
+  setShopId: (id: string | null) => void;
+  setOnboardingStep: (step: OnboardingStep | null) => void;
 }
 
 // Create the Store
@@ -36,9 +42,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   phoneNumber: '',
   isAuthenticated: false,
   ownerPin: null, 
-  verificationMethod: 'otp',
+  verificationMethod: 'agent',  // Agent code is the default for this app
   token: null,
   user: null,
+  shopId: null,
+  onboardingStep: null,
   
   // 👇 Default to 'login' to be safe
   verifyPurpose: 'login', 
@@ -58,6 +66,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       verifyPurpose: 'login',
       token: null,
       user: null,
+      shopId: null,
+      onboardingStep: null,
     });
   },
   
@@ -71,7 +81,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setVerifyPurpose: (purpose) => set({ verifyPurpose: purpose }),
   setVerificationMethod: (method) => set({ verificationMethod: method }),
 
-  // API integration actions
   setToken: (token) => set({ token }),
   setUser: (user) => set({ user }),
+  setShopId: (shopId) => set({ shopId }),
+  setOnboardingStep: (onboardingStep) => set({ onboardingStep }),
 }));

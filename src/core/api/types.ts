@@ -69,10 +69,12 @@ export class ApiError extends Error {
 
 // ─── Auth Types ──────────────────────────────────────────
 
+export type OnboardingStep = 'registered' | 'verified' | 'completed';
+
 export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
 }
 
 export interface LoginRequest {
@@ -86,7 +88,7 @@ export interface VerifyOtpRequest {
 
 export interface VerifyAgentCodeRequest {
   phone: string;
-  agentCode: string;
+  agent_code: string;
 }
 
 export interface User {
@@ -101,32 +103,42 @@ export interface User {
 export interface AuthResponse {
   user: User;
   tokens: AuthTokens;
+  onboarding_step: OnboardingStep;
 }
 
 // ─── Shop Types ──────────────────────────────────────────
 
 export interface Shop {
   id: string;
-  name: string;
-  ownerName: string;
+  shop_name: string;
+  owner_name: string;
   phone: string;
   email?: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  shopImage?: string;
-  ownerImage?: string;
-  isOnline: boolean;
-  isVerified: boolean;
-  createdAt: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  shop_image_url?: string;
+  owner_image_url?: string;
+  is_online: boolean;
+  is_verified: boolean;
+  is_onboarded: boolean;
+  onboarding_step: OnboardingStep;
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface RegisterShopRequest {
-  shopName: string;
-  ownerName: string;
+  shop_name: string;
+  owner_name: string;
   phone: string;
   email?: string;
-  referralCode?: string;
+  referral_code?: string;
+}
+
+export interface RegisterShopResponse {
+  shop_id: string;
+  phone: string;
+  onboarding_step: OnboardingStep;
 }
 
 export interface ShopSetupRequest {

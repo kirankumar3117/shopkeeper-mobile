@@ -1,7 +1,12 @@
+import { authService } from '@/src/core/api/services/auth';
+import { setRefreshToken, setToken } from '@/src/core/api/tokenStorage';
+import { ApiError } from '@/src/core/api/types';
+import { useAuthStore } from '@/src/core/store';
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -12,23 +17,32 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuthStore } from '../src/core/store';
 
 export default function VerifyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   
-  // Read from Store (Crash-Proof Logic)
-  const { login, setVerificationMethod, phoneNumber, verifyPurpose, verificationMethod } = useAuthStore();
+  // Read from Store
+  const { 
+    login, 
+    setVerificationMethod, 
+    setOnboardingStep,
+    setToken: storeSetToken,
+    setUser,
+    phoneNumber, 
+    verifyPurpose, 
+    verificationMethod 
+  } = useAuthStore();
+
   const isRegistration = verifyPurpose === 'register';
 
-  const [code, setCode] = useState('1234');
+  const [code, setCode] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Stable Switcher
   const switchMode = (newMode: 'otp' | 'agent') => {
     Keyboard.dismiss(); 
-    // Small delay to let keyboard close before state update
     const timer = setTimeout(() => {
       setVerificationMethod(newMode);
       setCode(''); 
@@ -37,25 +51,70 @@ export default function VerifyScreen() {
     return () => clearTimeout(timer); 
   };
 
-  const handleSuccess = () => {
+  const handleSuccess = (onboardingStep: string) => {
     login();
-    if (isRegistration) {
+    
+    // Navigate based on onboarding progress
+    if (onboardingStep === 'verified') {
+      // Step 2 done → go to shop setup (Step 3)
       router.replace('/shop-setup');
-    } else {
+    } else if (onboardingStep === 'completed') {
+      // Fully onboarded → go to main app
       router.replace('/(tabs)/orders');
+    } else {
+      // Fallback: registration flow → shop setup
+      if (isRegistration) {
+        router.replace('/shop-setup');
+      } else {
+        router.replace('/(tabs)/orders');
+      }
     }
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     setError('');
     const cleanCode = code.trim();
 
-    if (verificationMethod === 'otp') {
-      if (cleanCode === '1234') handleSuccess();
-      else setError('Invalid OTP. Try 1234');
-    } else {
-      if (cleanCode.toUpperCase() === 'AGENT007') handleSuccess();
-      else setError('Invalid Agent Code.');
+    if (!cleanCode) {
+      setError(verificationMethod === 'otp' ? 'Please enter the OTP' : 'Please enter the Agent Code');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      let response;
+
+      if (verificationMethod === 'otp') {
+        // POST /api/v1/auth/verify-otp
+        response = await authService.verifyOtp(phoneNumber, cleanCode);
+      } else {
+        // POST /api/v1/auth/verify-agent  
+        response = await authService.verifyAgentCode(phoneNumber, cleanCode);
+      }
+
+      const { tokens, user, onboarding_step } = response.data;
+
+      // 1. Store tokens securely
+      await setToken(tokens.access_token);
+      await setRefreshToken(tokens.refresh_token);
+
+      // 2. Update Zustand store
+      storeSetToken(tokens.access_token);
+      setUser(user);
+      setOnboardingStep(onboarding_step);
+
+      // 3. Navigate based on onboarding progress
+      handleSuccess(onboarding_step);
+    } catch (err) {
+      console.log(err);
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('Verification failed. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -94,17 +153,6 @@ export default function VerifyScreen() {
         {isRegistration && (
           <View className="flex-row bg-gray-100 p-1 rounded-xl mb-8">
             <TouchableOpacity 
-              onPress={() => switchMode('otp')}
-              className="flex-1 py-3 rounded-lg items-center"
-              // Replaced conditional className with standard style to prevent crash
-              style={verificationMethod === 'otp' ? styles.activeTab : null}
-            >
-              <Text className={`font-bold ${verificationMethod === 'otp' ? 'text-green-600' : 'text-gray-500'}`}>
-                SMS OTP
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
               onPress={() => switchMode('agent')}
               className="flex-1 py-3 rounded-lg items-center"
               style={verificationMethod === 'agent' ? styles.activeTab : null}
@@ -113,24 +161,36 @@ export default function VerifyScreen() {
                 Agent Code
               </Text>
             </TouchableOpacity>
+
+            <TouchableOpacity 
+              onPress={() => switchMode('otp')}
+              className="flex-1 py-3 rounded-lg items-center"
+              style={verificationMethod === 'otp' ? styles.activeTab : null}
+            >
+              <Text className={`font-bold ${verificationMethod === 'otp' ? 'text-green-600' : 'text-gray-500'}`}>
+                SMS OTP
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
         {/* Input Field */}
         <TextInput 
+          key={verificationMethod}
           className={`w-full bg-gray-50 border rounded-xl p-5 text-center text-2xl tracking-widest font-bold ${
             error ? 'border-red-500 bg-red-50' : 'border-green-500 bg-white'
           }`}
           placeholder={verificationMethod === 'otp' ? "• • • •" : "AGENT CODE"}
           placeholderTextColor="#9CA3AF"
           keyboardType={verificationMethod === 'otp' ? "number-pad" : "default"} 
-          maxLength={verificationMethod === 'otp' ? 4 : 10}
+          maxLength={verificationMethod === 'otp' ? 4 : 20}
           value={code}
           onChangeText={(text) => {
             setCode(text);
             if(error) setError('');
           }}
           autoCapitalize="characters"
+          editable={!isLoading}
         />
         
         {error ? (
@@ -140,19 +200,30 @@ export default function VerifyScreen() {
         {/* Verify Button */}
         <TouchableOpacity 
           onPress={handleVerify}
-          className="w-full bg-green-600 py-4 rounded-xl items-center mt-8"
+          className={`w-full py-4 rounded-xl items-center mt-8 ${isLoading ? 'bg-green-400' : 'bg-green-600'}`}
           activeOpacity={0.8}
-          // Using style for shadow instead of className="shadow-lg"
+          disabled={isLoading}
           style={styles.shadow} 
         >
-          <Text className="text-white font-bold text-lg">
-            {verificationMethod === 'otp' ? 'Verify & Login' : 'Verify Agent'}
-          </Text>
+          {isLoading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text className="text-white font-bold text-lg">
+              {verificationMethod === 'otp' ? 'Verify & Login' : 'Verify Agent'}
+            </Text>
+          )}
         </TouchableOpacity>
 
-        {/* Resend Link */}
-        {verificationMethod === 'otp' && (
-          <TouchableOpacity className="mt-6 items-center p-2">
+        {/* Resend Link (OTP only) */}
+        {verificationMethod === 'otp' && !isLoading && (
+          <TouchableOpacity 
+            className="mt-6 items-center p-2"
+            onPress={async () => {
+              try {
+                await authService.sendOtp(phoneNumber);
+              } catch {}
+            }}
+          >
             <Text className="text-gray-500">
               Didn't receive code? <Text className="text-green-600 font-bold">Resend</Text>
             </Text>
@@ -168,21 +239,17 @@ export default function VerifyScreen() {
 const styles = StyleSheet.create({
   activeTab: {
     backgroundColor: 'white',
-    // iOS Shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
-    // Android Shadow
     elevation: 2,
   },
   shadow: {
-    // iOS Shadow
-    shadowColor: '#10B981', // Green shadow
+    shadowColor: '#10B981',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    // Android Shadow
     elevation: 5,
   }
 });

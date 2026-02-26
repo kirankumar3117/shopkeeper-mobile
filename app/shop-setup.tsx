@@ -1,11 +1,14 @@
+import { shopService } from '@/src/core/api/services/shop';
+import { ApiError } from '@/src/core/api/types';
+import { useAuthStore } from '@/src/core/store';
 import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import { MapPin } from 'lucide-react-native'; // Clean Icon
+import { MapPin } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, // Added TextInput
+  ActivityIndicator,
   Alert,
   Image,
   Modal,
@@ -21,6 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ShopSetupScreen() {
   const router = useRouter();
+  const { setOnboardingStep } = useAuthStore();
   
   // Images
   const [shopImage, setShopImage] = useState<string | null>(null);
@@ -33,9 +37,10 @@ export default function ShopSetupScreen() {
   // UI State
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [apiError, setApiError] = useState('');
 
   // 1. AUTO-FETCH LOCATION ON MOUNT
- useEffect(() => {
+  useEffect(() => {
     (async () => {
       try {
         let { status } = await Location.requestForegroundPermissionsAsync();
@@ -46,9 +51,8 @@ export default function ShopSetupScreen() {
 
         setLocationAddress('Fetching precise location...');
 
-        // 👇 KEY CHANGE: accuracy: Location.Accuracy.Highest
         let location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Highest, // Forces GPS (not just WiFi/Cell towers)
+          accuracy: Location.Accuracy.Highest,
         });
 
         setCoords({
@@ -64,7 +68,6 @@ export default function ShopSetupScreen() {
 
         if (address.length > 0) {
           const loc = address[0];
-          // Shows: "Door No 1-2, MG Road, Hyderabad" (More details)
           const street = loc.street || loc.name || '';
           const city = loc.city || loc.district || '';
           const region = loc.region || '';
@@ -95,25 +98,41 @@ export default function ShopSetupScreen() {
     if (!result.canceled) setImage(result.assets[0].uri);
   };
 
-  // 3. SUBMIT
+  // 3. SUBMIT → POST /api/v1/shops/setup
   const handleVerifyAndSave = async () => {
-    console.log("handleVerifyAndSave", coords);
-    // if (!shopImage || !ownerImage) {
-    //   Alert.alert("Missing Photos", "Please upload both Shop Front and Profile photos.");
-    //   return;
-    // }
-    // if (!coords) {
-    //   Alert.alert("Location Missing", "Please wait for location to update.");
-    //   return;
-    // }
+    if (!coords) {
+      Alert.alert("Location Missing", "Please wait for location to update, or try again outdoors.");
+      return;
+    }
 
     setIsLoading(true);
+    setApiError('');
 
-    // Simulate API Call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await shopService.setupShop({
+        latitude: coords.lat,
+        longitude: coords.lng,
+        address: locationAddress,
+        shopImageUri: shopImage || undefined,
+        ownerImageUri: ownerImage || undefined,
+      });
+
+      // Mark onboarding as complete in store
+      setOnboardingStep('completed');
+
+      // Show success popup
       setShowSuccessPopup(true);
-    }, 1500);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setApiError(err.message);
+        Alert.alert("Setup Failed", err.message);
+      } else {
+        setApiError('Something went wrong. Please try again.');
+        Alert.alert("Error", "Something went wrong. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -132,21 +151,31 @@ export default function ShopSetupScreen() {
             </TouchableOpacity>
             <View>
               <Text className="text-2xl font-bold text-gray-900">Shop Details</Text>
-              <Text className="text-gray-500">Step 2 of 3</Text>
+              <Text className="text-gray-500">Final Step — Setup Location & Photos</Text>
             </View>
           </View>
 
-          {/* --- NEW: READ-ONLY LOCATION INPUT --- */}
+          {/* --- API ERROR BANNER --- */}
+          {apiError ? (
+            <View className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+              <Text className="text-red-700 font-medium text-sm">{apiError}</Text>
+            </View>
+          ) : null}
+
+          {/* --- READ-ONLY LOCATION INPUT --- */}
           <Text className="font-semibold text-gray-700 mb-2">Current Shop Location</Text>
           <View className="flex-row items-center bg-gray-200 rounded-xl px-4 py-4 mb-6 border border-gray-300">
             <MapPin size={20} color="#4B5563" />
             <TextInput
               value={locationAddress}
-              editable={false} // READ ONLY
+              editable={false}
               className="flex-1 ml-3 text-gray-600 font-medium"
             />
-            {/* Visual indicator that it is locked */}
-            <View className="bg-gray-400 rounded-full h-2 w-2 ml-2" />
+            {coords ? (
+              <View className="bg-green-500 rounded-full h-2 w-2 ml-2" />
+            ) : (
+              <ActivityIndicator size="small" color="#9CA3AF" />
+            )}
           </View>
 
           {/* Card 1: Shop Front */}
@@ -161,6 +190,7 @@ export default function ShopSetupScreen() {
               <View className="items-center">
                 <Text className="text-4xl mb-2">🏪</Text>
                 <Text className="text-green-600 font-medium">Upload Shop Photo</Text>
+                <Text className="text-gray-400 text-xs mt-1">(Optional)</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -177,6 +207,7 @@ export default function ShopSetupScreen() {
               <View className="items-center">
                 <Text className="text-4xl mb-2">👤</Text>
                 <Text className="text-green-600 font-medium">Upload Your Photo</Text>
+                <Text className="text-gray-400 text-xs mt-1">(Optional)</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -184,29 +215,30 @@ export default function ShopSetupScreen() {
           {/* Submit Button */}
           <TouchableOpacity 
             onPress={handleVerifyAndSave}
-            className="w-full bg-green-600 py-4 rounded-xl items-center mb-10"
+            className={`w-full py-4 rounded-xl items-center mb-10 ${isLoading || !coords ? 'bg-green-400' : 'bg-green-600'}`}
             style={styles.btnShadow}
             activeOpacity={0.8}
+            disabled={isLoading || !coords}
           >
             {isLoading ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text className="text-white font-bold text-lg">Verify & Save</Text>
+              <Text className="text-white font-bold text-lg">
+                {coords ? 'Save & Go Live' : 'Waiting for Location...'}
+              </Text>
             )}
           </TouchableOpacity>
 
         </ScrollView>
       </SafeAreaView>
 
-      {/* --- SUCCESS MODAL WITH ANDROID FIX --- */}
+      {/* --- SUCCESS MODAL --- */}
       <Modal visible={showSuccessPopup} transparent animationType="fade">
         
         {/* BACKGROUND LAYER */}
         {Platform.OS === 'ios' ? (
-          // iOS gets the nice Blur
           <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
         ) : (
-          // Android gets a DARK DIMMED OVERLAY (Fixes visibility issue)
           <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.8)' }]} />
         )}
 
@@ -218,9 +250,9 @@ export default function ShopSetupScreen() {
             <View className="h-16 w-16 bg-green-100 rounded-full items-center justify-center mb-4">
               <Text className="text-3xl">✅</Text>
             </View>
-            <Text className="text-2xl font-bold text-gray-900 mb-2">Success!</Text>
+            <Text className="text-2xl font-bold text-gray-900 mb-2">You're All Set!</Text>
             <Text className="text-gray-500 text-center mb-6 leading-5">
-              Your shop details and location have been captured.
+              Your shop is now registered and live on Kart Mithra. Start receiving orders!
             </Text>
             
             <TouchableOpacity 
@@ -230,7 +262,7 @@ export default function ShopSetupScreen() {
               }}
               className="w-full bg-gray-900 py-4 rounded-xl items-center"
             >
-              <Text className="text-white font-bold text-lg">Awesome</Text>
+              <Text className="text-white font-bold text-lg">Start Selling →</Text>
             </TouchableOpacity>
           </View>
         </View>

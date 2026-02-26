@@ -7,6 +7,7 @@ import { apiClient } from '../client';
 import type {
     ApiResponse,
     RegisterShopRequest,
+    RegisterShopResponse,
     Shop,
 } from '../types';
 
@@ -18,7 +19,7 @@ export const shopService = {
    * POST /shops/register
    */
   registerShop: (data: RegisterShopRequest) =>
-    apiClient.post<ApiResponse<Shop>>(
+    apiClient.post<ApiResponse<RegisterShopResponse>>(
       `${SHOPS_BASE}/register`,
       data,
       { skipAuth: true }
@@ -79,7 +80,7 @@ export const shopService = {
    * PATCH /shops/me/status
    */
   updateStatus: (isOnline: boolean) =>
-    apiClient.patch<ApiResponse<Shop>>(`${SHOPS_BASE}/me/status`, { isOnline }),
+    apiClient.patch<ApiResponse<Shop>>(`${SHOPS_BASE}/me/status`, { is_online: isOnline }),
 
   /**
    * Update shop profile details
