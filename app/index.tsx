@@ -1,15 +1,13 @@
 import { Input } from '@/src/components/ui/Input';
-import { authService } from '@/src/core/api/services/auth';
-import { ApiError } from '@/src/core/api/types';
 import { useAuthStore } from '@/src/core/store';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
   Image,
   Keyboard,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   Text,
@@ -23,11 +21,10 @@ export default function PhoneEntryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   
-  const { setPhoneNumber, setShopStatus, setShopId } = useAuthStore();
+  const { setPhoneNumber } = useAuthStore();
   
   const [mobile, setMobile] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [register, setRegister] = useState(false);
 
   const handleContinue = async () => {
@@ -36,48 +33,16 @@ export default function PhoneEntryScreen() {
       return;
     }
 
-    setIsLoading(true);
-    setError('');
-
-    try {
-      // Call check-status endpoint
-      const response = await authService.checkStatus(mobile);
-      const { status, shop_id } = response.data;
-
-      // Save to store
-      setPhoneNumber(mobile);
-      setShopStatus(status);
-      if (shop_id) setShopId(shop_id);
-
-      // Dynamic routing based on status
-      switch (status) {
-        case 'new_user':
-          router.push('/register');
-          break;
-        case 'registered':
-          router.push('/verify');
-          break;
-        case 'verified':
-          router.push('/set-pin');
-          break;
-        case 'pin_set':
-          router.push('/shop-setup');
-          break;
-        case 'active':
-          router.push('/login');
-          break;
-        default:
-          router.push('/register');
-      }
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError('Unable to connect. Please check your network.');
-      }
-    } finally {
-      setIsLoading(false);
+    if (register) {
+      // Redirect to registration website
+      // Using a placeholder link for now until user provides the real one
+      Linking.openURL('https://example.com/register');
+      return;
     }
+
+    setError('');
+    setPhoneNumber(mobile);
+    router.push('/login');
   };
 
   return (
@@ -137,18 +102,11 @@ export default function PhoneEntryScreen() {
                 <TouchableOpacity 
                   onPress={handleContinue}
                   activeOpacity={0.8}
-                  disabled={isLoading}
-                  className={`w-full py-4 rounded-xl items-center shadow-lg shadow-green-200 mt-4 ${
-                    isLoading ? 'bg-green-400' : 'bg-green-600'
-                  }`}
+                  className="w-full py-4 rounded-xl items-center shadow-lg shadow-green-200 mt-4 bg-green-600"
                 >
-                  {isLoading ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <Text className="text-white font-bold text-lg">
-                      {register ? "Register" : "Login"}
-                    </Text>
-                  )}
+                  <Text className="text-white font-bold text-lg">
+                    {register ? "Register" : "Login"}
+                  </Text>
                 </TouchableOpacity>
               </View>
 

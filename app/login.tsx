@@ -37,7 +37,7 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     if (pin.length !== 4) {
       setError('Please enter your 4-digit PIN');
-      return;
+      return
     }
 
     setIsLoading(true);

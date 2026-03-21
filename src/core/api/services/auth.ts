@@ -79,8 +79,8 @@ export const authService = {
    */
   loginWithPin: (phone: string, pin: string) =>
     apiClient.post<ApiResponse<AuthResponse>>(
-      `${AUTH_BASE}/login-pin`,
-      { phone, pin } as LoginWithPinRequest,
+      `${AUTH_BASE}/merchant/login`,
+      { phone_number: phone,password: pin } as LoginWithPinRequest,
       { skipAuth: true }
     ),
 

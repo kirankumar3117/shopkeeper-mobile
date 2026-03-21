@@ -84,8 +84,8 @@ export interface CheckStatusResponse {
 
 /** Request for POST /auth/login-pin */
 export interface LoginWithPinRequest {
-  phone: string;
-  pin: string;
+  phone_number: string;
+  password: string;
 }
 
 /** Request for POST /auth/set-pin */
