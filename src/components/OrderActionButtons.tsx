@@ -16,8 +16,8 @@ export function OrderActionButtons({
   status, type, hasTotal, onReject, onAccept, onMarkReady, onComplete 
 }: ActionButtonsProps) {
   
-  // 1. NEW ORDER
-  if (status === 'new') {
+  // 1. PENDING ORDER
+  if (status === 'pending') {
     return (
       <View className="flex-row space-x-3">
         <TouchableOpacity onPress={onReject} className="flex-1 bg-red-50 border border-red-100 py-4 rounded-xl items-center">

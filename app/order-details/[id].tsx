@@ -22,7 +22,7 @@ export default function OrderDetailsScreen() {
   }, [id]);
 
   // 2. LOCAL STATE (Lifted State)
-  const [manualTotal, setManualTotal] = useState(order?.total || '');
+  const [manualTotal, setManualTotal] = useState(order?.total_amount?.toString() || '');
 
   // Safety Check
   if (!order) {
@@ -44,7 +44,7 @@ export default function OrderDetailsScreen() {
   const handleAccept = () => {
     // Logic for both "Accept" and "Send Bill"
     Alert.alert("Success", order.type === 'image' ? `Bill sent: ₹${manualTotal}` : "Order Accepted!");
-    if(order.status === 'new') router.back();
+    if(order.status === 'pending') router.back();
   };
 
   const handleMarkReady = () => {
@@ -69,7 +69,7 @@ export default function OrderDetailsScreen() {
           <View>
             <Text className="text-lg font-bold text-gray-900">Order {order.id}</Text>
             <Text className="text-xs text-gray-500 font-medium capitalize">
-              {order.status === 'new' ? '⚡ New Request' : order.status}
+              {order.status === 'pending' ? '⚡ New Request' : order.status}
             </Text>
           </View>
         </View>
@@ -79,7 +79,7 @@ export default function OrderDetailsScreen() {
           
           {order.type === 'image' ? (
             <HandwrittenOrderView 
-              imageUri={order.imageUrl || ''} 
+              imageUri={order.list_image_url || ''} 
               total={manualTotal}
               onUpdateTotal={setManualTotal}
               status={order.status}

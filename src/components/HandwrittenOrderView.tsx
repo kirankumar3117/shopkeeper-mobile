@@ -44,7 +44,7 @@ export function HandwrittenOrderView({ imageUri, total, onUpdateTotal, status }:
           {status === 'ready' ? 'Final Collection Amount' : 'Total Bill Amount'}
         </Text>
         <View className={`flex-row items-center border-b-2 pb-2 ${
-          status === 'new' ? 'border-green-500' : 'border-gray-300'
+          status === 'pending' ? 'border-green-500' : 'border-gray-300'
         }`}>
           <Text className="text-3xl font-bold text-gray-900 mr-2">₹</Text>
           <TextInput 
@@ -57,7 +57,7 @@ export function HandwrittenOrderView({ imageUri, total, onUpdateTotal, status }:
           />
         </View>
         <Text className="text-gray-400 text-xs mt-2">
-          {status === 'new' ? 'Check prices manually and enter total.' : 'Update this if the final bill changed.'}
+          {status === 'pending' ? 'Check prices manually and enter total.' : 'Update this if the final bill changed.'}
         </Text>
       </View>
 
