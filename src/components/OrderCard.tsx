@@ -58,17 +58,15 @@ const PulseBadge = () => {
   );
 };
 
+import type { OrderItem } from '@/src/core/api/types';
+
 // --- 2. Main Component ---
-interface OrderItem {
-  name: string;
-  qty: string;
-}
 
 interface OrderCardProps {
   id: string;
   time: string;
-  paymentMode: string;
-  status: 'new' | 'preparing' | 'ready';
+  paymentMode?: string;
+  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'picked_up';
   items: OrderItem[];
   total: string;
   onExpand: () => void;
@@ -104,15 +102,15 @@ export function OrderCard({
           <Text className="text-gray-500 text-xs mt-1 font-medium">
             {time} •{' '}
             <Text className={`font-bold ${
-              paymentMode.toLowerCase().includes('cash') ? 'text-orange-500' : 'text-green-600'
+              (paymentMode || '').toLowerCase().includes('cash') ? 'text-orange-500' : 'text-green-600'
             }`}>
-              {paymentMode}
+              {paymentMode || 'Cash on Delivery'}
             </Text>
           </Text>
         </View>
 
         <View className="mt-1 mr-1"> 
-          {status === 'new' ? (
+          {status === 'pending' ? (
             <PulseBadge />
           ) : (
             <View className={`px-3 py-1 rounded-full border ${getStatusColor()}`}>
@@ -187,7 +185,7 @@ export function OrderCard({
           <Text className="text-xl font-bold text-gray-900">₹{total}</Text>
         </View>
 
-        {status === 'new' ? (
+        {status === 'pending' ? (
           <View className="flex-row justify-between">
             <TouchableOpacity onPress={onReject} className="w-[48%] bg-white border border-red-100 py-3 rounded-xl items-center shadow-sm">
               <Text className="text-red-600 font-bold">Reject</Text>

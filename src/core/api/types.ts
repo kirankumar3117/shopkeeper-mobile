@@ -172,76 +172,108 @@ export interface ShopSetupRequest {
 
 // ─── Product / Inventory Types ───────────────────────────
 
-export interface Product {
-  id: number;
+export interface MasterProduct {
+  id: string;
   name: string;
-  variant: string;
-  price: number;
-  stock: boolean;
-  category?: string;
-  imageUrl?: string;
+  brand?: string;
+  category_id?: string;
+  subcategory_id?: string;
+  image_url?: string;
   barcode?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  created_at?: string;
 }
 
-export interface CreateProductRequest {
+export interface ProductRequest {
+  id: string;
   name: string;
-  variant: string;
+  brand?: string;
+  category?: string;
+  subcategory?: string;
+  image?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+}
+
+export interface InventoryItem {
+  id: string; // inventory_id
+  product_id: string;
+  name: string; // derived from master
   price: number;
-  stock?: boolean;
-  category?: string;
+  stock: number;
+  image_url?: string;
 }
 
-export interface UpdateProductRequest {
-  name?: string;
-  variant?: string;
+export interface AddToInventoryRequest {
+  product_id: string;
+  price: number;
+  stock: number;
+}
+
+export interface UpdateInventoryRequest {
   price?: number;
-  stock?: boolean;
-  category?: string;
+  stock?: number;
 }
 
-export interface BulkUpdateProductsRequest {
-  products: Array<{
-    id: number;
-    price?: number;
-    stock?: boolean;
-  }>;
+export interface CreateProductRequestPayload {
+  name: string;
+  brand?: string;
+  category?: string;
+  subcategory?: string;
+  // images can be handled via FormData if needed, omitting here for JSON
 }
 
 // ─── Order Types ─────────────────────────────────────────
 
 export interface OrderItem {
-  id: number;
+  id: string;
   name: string;
-  qty: string;
+  qty: number;
   price: number;
+  image_url?: string;
 }
 
-export type OrderStatus = 'new' | 'preparing' | 'ready' | 'completed';
-export type OrderType = 'list' | 'image';
+export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'picked_up';
+export type OrderType = 'list' | 'image' | 'pre_order';
 
 export interface Order {
   id: string;
   status: OrderStatus;
-  time: string;
-  payment: string;
-  total: string;
+  total_amount: number;
+  item_count?: number;
+  customer_name?: string;
+  customer_phone?: string;
   type: OrderType;
   items: OrderItem[];
-  imageUrl?: string;
-  customerName?: string;
-  customerPhone?: string;
-  scheduledPickup?: string;
-  createdAt?: string;
+  list_image_url?: string; // For Chitty orders
+  estimated_preparation_minutes?: number;
+  created_at?: string;
 }
 
-export interface AcceptOrderRequest {
-  total?: string;
+export interface UpdateOrderRequest {
+  status: OrderStatus;
+  estimated_preparation_minutes?: number;
+  total_amount?: number;
 }
 
-export interface RejectOrderRequest {
-  reason?: string;
+// ─── Notifications & WebSockets ──────────────────────────
+
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  is_read: boolean;
+  type: string;
+  created_at: string;
+  read_at?: string;
+}
+
+export interface WebSocketMessage {
+  type: string;
+  order_id?: string;
+  customer_name?: string;
+  total_amount?: number;
+  item_count?: number;
+  [key: string]: any;
 }
 
 // ─── Generic Hook State ──────────────────────────────────

@@ -1,69 +1,65 @@
 /**
- * Inventory Service
- * Handles all product/inventory-related API calls.
+ * Inventory & Master Catalog Service
+ * Handles product catalog browsing and shop inventory management.
  */
 
 import { apiClient } from '../client';
 import type {
+    AddToInventoryRequest,
     ApiResponse,
-    BulkUpdateProductsRequest,
-    CreateProductRequest,
+    InventoryItem,
+    MasterProduct,
     PaginatedResponse,
-    Product,
-    UpdateProductRequest,
+    UpdateInventoryRequest,
 } from '../types';
 
-const INVENTORY_BASE = '/inventory/products';
-
 export const inventoryService = {
+  // ─── Master Catalog ────────────────────────────────────
+
   /**
-   * Fetch all products for the current shop
-   * GET /inventory/products
+   * Browse master catalog products
+   * GET /products/?search=...&limit=50
    */
-  getProducts: (params?: { search?: string; inStock?: boolean }) => {
+  getMasterProducts: (params?: { search?: string; category_id?: string; limit?: number }) => {
     const query = new URLSearchParams();
     if (params?.search) query.set('search', params.search);
-    if (params?.inStock !== undefined) query.set('in_stock', String(params.inStock));
+    if (params?.category_id) query.set('category_id', params.category_id);
+    if (params?.limit) query.set('limit', String(params.limit));
+    
+    // As per guide: Do NOT pass available_only=true so the merchant sees all master products.
     const qs = query.toString();
-    return apiClient.get<PaginatedResponse<Product>>(
-      `${INVENTORY_BASE}${qs ? `?${qs}` : ''}`
+    return apiClient.get<PaginatedResponse<MasterProduct>>(
+      `/products/${qs ? `?${qs}` : ''}`
     );
   },
 
-  /**
-   * Add a new product
-   * POST /inventory/products
-   */
-  addProduct: (data: CreateProductRequest) =>
-    apiClient.post<ApiResponse<Product>>(INVENTORY_BASE, data),
+  // ─── Shop Inventory ────────────────────────────────────
 
   /**
-   * Update a product (price, name, variant, etc.)
-   * PATCH /inventory/products/:id
+   * Get all products the merchant is currently selling
+   * GET /inventory/my-inventory
    */
-  updateProduct: (id: number, data: UpdateProductRequest) =>
-    apiClient.patch<ApiResponse<Product>>(`${INVENTORY_BASE}/${id}`, data),
+  getMyInventory: () =>
+    apiClient.get<PaginatedResponse<InventoryItem>>('/inventory/my-inventory'),
 
   /**
-   * Toggle stock status for a product
-   * PATCH /inventory/products/:id/stock
+   * Add a product from master catalog to shop inventory
+   * POST /inventory/
    */
-  toggleStock: (id: number, inStock: boolean) =>
-    apiClient.patch<ApiResponse<Product>>(`${INVENTORY_BASE}/${id}/stock`, {
-      stock: inStock,
-    }),
+  addToInventory: (data: AddToInventoryRequest) =>
+    apiClient.post<ApiResponse<InventoryItem>>('/inventory/', data),
 
   /**
-   * Bulk update multiple products at once (for the "Save Changes" flow)
-   * PUT /inventory/products/bulk
+   * Update price and/or stock of an existing inventory item
+   * PATCH /inventory/{inventory_id}
    */
-  bulkUpdate: (data: BulkUpdateProductsRequest) =>
-    apiClient.put<ApiResponse<{ updated: number }>>(`${INVENTORY_BASE}/bulk`, data),
+  updateInventory: (inventoryId: string, data: UpdateInventoryRequest) =>
+    apiClient.patch<ApiResponse<InventoryItem>>(`/inventory/${inventoryId}`, data),
 
   /**
-   * Delete a product
-   * DELETE /inventory/products/:id
+   * Remove product from shop inventory
+   * DELETE /inventory/{inventory_id}
    */
-  deleteProduct: (id: number) =>
-    apiClient.delete<ApiResponse<null>>(`${INVENTORY_BASE}/${id}`),
+  removeFromInventory: (inventoryId: string) =>
+    apiClient.delete<ApiResponse<null>>(`/inventory/${inventoryId}`),
 };

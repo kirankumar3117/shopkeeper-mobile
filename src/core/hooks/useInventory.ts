@@ -7,24 +7,24 @@
  */
 
 import { inventoryService } from '@/src/core/api/services/inventory';
-import type { CreateProductRequest, Product } from '@/src/core/api/types';
+import type { AddToInventoryRequest, InventoryItem } from '@/src/core/api/types';
 import { ApiError } from '@/src/core/api/types';
 import { useCallback, useState } from 'react';
 
 interface UseInventoryReturn {
-  products: Product[];
+  products: InventoryItem[];
   loading: boolean;
   saving: boolean;
   error: string | null;
   /** Fetch products from API */
-  fetchProducts: (search?: string) => Promise<void>;
+  fetchProducts: () => Promise<void>;
   /** Add a new product */
-  addProduct: (data: CreateProductRequest) => Promise<boolean>;
+  addProduct: (data: AddToInventoryRequest) => Promise<boolean>;
   /** Toggle stock status (optimistic update) */
-  toggleStock: (id: number) => void;
+  toggleStock: (id: string) => void;
   /** Update a product's price (optimistic update) */
-  updatePrice: (id: number, newPrice: number) => void;
-  /** Save all changes to API (bulk update) */
+  updatePrice: (id: string, newPrice: number) => void;
+  /** Save all changes to API (Promise.all patches) */
   saveChanges: () => Promise<boolean>;
   /** Track whether local edits exist */
   hasUnsavedChanges: boolean;
@@ -32,20 +32,20 @@ interface UseInventoryReturn {
 }
 
 export function useInventory(): UseInventoryReturn {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Track local changes for bulk save
-  const [changedProductIds, setChangedProductIds] = useState<Set<number>>(new Set());
+  const [changedProductIds, setChangedProductIds] = useState<Set<string>>(new Set());
 
-  const fetchProducts = useCallback(async (search?: string) => {
+  const fetchProducts = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await inventoryService.getProducts(search ? { search } : undefined);
+      const response = await inventoryService.getMyInventory();
       setProducts(response.data);
       setHasUnsavedChanges(false);
       setChangedProductIds(new Set());
@@ -57,10 +57,10 @@ export function useInventory(): UseInventoryReturn {
     }
   }, []);
 
-  const addProduct = useCallback(async (data: CreateProductRequest): Promise<boolean> => {
+  const addProduct = useCallback(async (data: AddToInventoryRequest): Promise<boolean> => {
     setError(null);
     try {
-      const response = await inventoryService.addProduct(data);
+      const response = await inventoryService.addToInventory(data);
       // Prepend the newly created product
       setProducts(prev => [response.data, ...prev]);
       return true;
@@ -71,15 +71,15 @@ export function useInventory(): UseInventoryReturn {
     }
   }, []);
 
-  const toggleStock = useCallback((id: number) => {
+  const toggleStock = useCallback((id: string) => {
     setProducts(prev =>
-      prev.map(p => (p.id === id ? { ...p, stock: !p.stock } : p))
+      prev.map(p => (p.id === id ? { ...p, stock: p.stock > 0 ? 0 : 10 } : p))
     );
     setChangedProductIds(prev => new Set(prev).add(id));
     setHasUnsavedChanges(true);
   }, []);
 
-  const updatePrice = useCallback((id: number, newPrice: number) => {
+  const updatePrice = useCallback((id: string, newPrice: number) => {
     setProducts(prev =>
       prev.map(p => (p.id === id ? { ...p, price: newPrice } : p))
     );
@@ -93,11 +93,13 @@ export function useInventory(): UseInventoryReturn {
     setSaving(true);
     setError(null);
     try {
-      const changedProducts = products
-        .filter(p => changedProductIds.has(p.id))
-        .map(p => ({ id: p.id, price: p.price, stock: p.stock }));
+      const changedProducts = products.filter(p => changedProductIds.has(p.id));
+      await Promise.all(
+        changedProducts.map(p =>
+          inventoryService.updateInventory(p.id, { price: p.price, stock: p.stock })
+        )
+      );
 
-      await inventoryService.bulkUpdate({ products: changedProducts });
       setHasUnsavedChanges(false);
       setChangedProductIds(new Set());
       return true;

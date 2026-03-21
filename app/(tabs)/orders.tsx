@@ -22,10 +22,10 @@ export default function OrdersScreen() {
     if (activeTab === 'all') {
       filteredOrders = [...orders];
     } else {
-      // Logic: If I am in 'preparing', show only 'preparing' + 'new'
-      filteredOrders = orders.filter(o => o.status === activeTab || o.status === 'new');
+      // Logic: If I am in 'preparing', show only 'preparing' + 'pending' + 'confirmed'
+      filteredOrders = orders.filter(o => o.status === activeTab || o.status === 'pending' || o.status === 'confirmed');
     }
-    const statusOrder = { 'new': 1, 'preparing': 2, 'ready': 3 };
+    const statusOrder = { 'pending': 1, 'confirmed': 2, 'preparing': 3, 'ready': 4, 'picked_up': 5 };
     filteredOrders.sort((a, b) => {
       // Sort by status priority
       const scoreA = statusOrder[a.status as keyof typeof statusOrder] || 99;
@@ -129,10 +129,11 @@ export default function OrdersScreen() {
                     <View className="flex-row items-center py-4 mt-2">
                       <View className="flex-1 h-[1px] bg-gray-300" />
                       <Text className={`mx-3 text-xs font-bold uppercase tracking-widest ${
-                        order.status === 'new' ? 'text-green-700' : 'text-gray-500'
+                        order.status === 'pending' ? 'text-green-700' : 'text-gray-500'
                       }`}>
-                        {order.status === 'new' ? '⚡ New Arrivals' : 
-                         order.status === 'preparing' ? 'Preparing' : 'Ready for Pickup'}
+                        {order.status === 'pending' ? '⚡ New Arrivals' : 
+                         order.status === 'preparing' ? 'Preparing' : 
+                         order.status === 'confirmed' ? 'Confirmed' : 'Ready for Pickup'}
                       </Text>
                       <View className="flex-1 h-[1px] bg-gray-300" />
                     </View>
@@ -141,9 +142,9 @@ export default function OrdersScreen() {
                   <OrderCard 
                     id={order.id}
                     status={order.status as any}
-                    time={order.time}
-                    paymentMode={order.payment}
-                    total={order.total}
+                    time={order.created_at || 'Just now'}
+                    paymentMode={'Cash on Delivery'}
+                    total={order.total_amount?.toString() || '0'}
                     items={order.items}
                     onExpand={() => router.push({
                       pathname: "/order-details/[id]",

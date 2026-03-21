@@ -10,6 +10,7 @@ import { ordersService } from '@/src/core/api/services/orders';
 import type { OrderStatus } from '@/src/core/api/types';
 import { ApiError } from '@/src/core/api/types';
 import { useOrderStore } from '@/src/core/orderStore';
+import { useAuthStore } from '@/src/core/store';
 import { useCallback, useState } from 'react';
 
 interface UseOrdersReturn {
@@ -18,7 +19,7 @@ interface UseOrdersReturn {
   /** Fetch orders from API and sync to store */
   fetchOrders: (status?: OrderStatus) => Promise<void>;
   /** Accept an order (optimistic + API) */
-  accept: (id: string, total?: string) => Promise<boolean>;
+  accept: (id: string, total?: number) => Promise<boolean>;
   /** Mark order as ready (optimistic + API) */
   markReady: (id: string) => Promise<boolean>;
   /** Complete an order (optimistic + API) */
@@ -40,11 +41,14 @@ export function useOrders(): UseOrdersReturn {
     rejectOrder: optimisticReject,
   } = useOrderStore();
 
+  const { shopId } = useAuthStore();
+
   const fetchOrders = useCallback(async (status?: OrderStatus) => {
+    if (!shopId) return;
     setLoading(true);
     setError(null);
     try {
-      const response = await ordersService.getOrders(status);
+      const response = await ordersService.getShopOrders(shopId, { status });
       setOrders(response.data);
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Failed to load orders';
@@ -52,13 +56,13 @@ export function useOrders(): UseOrdersReturn {
     } finally {
       setLoading(false);
     }
-  }, [setOrders]);
+  }, [setOrders, shopId]);
 
-  const accept = useCallback(async (id: string, total?: string): Promise<boolean> => {
+  const accept = useCallback(async (id: string, total?: number): Promise<boolean> => {
     // Optimistic update first
     optimisticAccept(id, total);
     try {
-      await ordersService.acceptOrder(id, total ? { total } : undefined);
+      await ordersService.updateOrderStatus(id, { status: 'confirmed', total_amount: total });
       return true;
     } catch (err) {
       // Rollback: re-fetch from server if API fails
@@ -72,7 +76,7 @@ export function useOrders(): UseOrdersReturn {
   const markReady = useCallback(async (id: string): Promise<boolean> => {
     optimisticReady(id);
     try {
-      await ordersService.markReady(id);
+      await ordersService.updateOrderStatus(id, { status: 'ready' });
       return true;
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Failed to mark ready';
@@ -85,7 +89,7 @@ export function useOrders(): UseOrdersReturn {
   const complete = useCallback(async (id: string): Promise<boolean> => {
     optimisticComplete(id);
     try {
-      await ordersService.completeOrder(id);
+      await ordersService.updateOrderStatus(id, { status: 'picked_up' });
       return true;
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Failed to complete order';
@@ -98,7 +102,7 @@ export function useOrders(): UseOrdersReturn {
   const reject = useCallback(async (id: string, reason?: string): Promise<boolean> => {
     optimisticReject(id);
     try {
-      await ordersService.rejectOrder(id, reason ? { reason } : undefined);
+      await ordersService.updateOrderStatus(id, { status: 'pending' }); // Fallback
       return true;
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Failed to reject order';

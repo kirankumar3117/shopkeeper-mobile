@@ -1,23 +1,6 @@
 import { MOCK_ORDERS } from '@/src/data/mockData'; // Your static data is just the "Initial State" now
 import { create } from 'zustand';
-
-interface OrderItem {
-  id: number;
-  name: string;
-  qty: string;
-  price: number;
-}
-
-export interface Order {
-  id: string;
-  status: 'new' | 'preparing' | 'ready' | 'completed';
-  time: string;
-  payment: string;
-  total: string;
-  type: 'list' | 'image';
-  items: OrderItem[];
-  imageUrl?: string;
-}
+import type { Order } from './api/types';
 
 interface OrderState {
   orders: Order[];
@@ -26,17 +9,17 @@ interface OrderState {
   
   // Actions
   setOrders: (orders: Order[]) => void;
-  acceptOrder: (id: string, total?: string) => void;
+  acceptOrder: (id: string, total?: number) => void;
   markReady: (id: string) => void;
   completeOrder: (id: string) => void;
   rejectOrder: (id: string) => void;
-  updateTotal: (id: string, total: string) => void;
+  updateTotal: (id: string, total: number) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
 }
 
 export const useOrderStore = create<OrderState>((set) => ({
-  orders: MOCK_ORDERS as Order[], // Initialize with mock data (will be replaced by API data)
+  orders: MOCK_ORDERS as unknown as Order[],
   isLoading: false,
   error: null,
 
@@ -46,7 +29,7 @@ export const useOrderStore = create<OrderState>((set) => ({
   acceptOrder: (id, total) => set((state) => ({
     orders: state.orders.map((order) => 
       order.id === id 
-        ? { ...order, status: 'preparing', total: total || order.total } // Move to Preparing
+        ? { ...order, status: 'confirmed', total_amount: total || order.total_amount } 
         : order
     )
   })),
@@ -68,7 +51,7 @@ export const useOrderStore = create<OrderState>((set) => ({
 
   updateTotal: (id, total) => set((state) => ({
     orders: state.orders.map((order) => 
-      order.id === id ? { ...order, total } : order
+      order.id === id ? { ...order, total_amount: total } : order
     )
   })),
 

@@ -5,58 +5,43 @@
 
 import { apiClient } from '../client';
 import type {
-    AcceptOrderRequest,
     ApiResponse,
     Order,
-    OrderStatus,
     PaginatedResponse,
-    RejectOrderRequest,
+    UpdateOrderRequest,
 } from '../types';
-
-const ORDERS_BASE = '/orders';
 
 export const ordersService = {
   /**
-   * Fetch orders (optionally filtered by status)
-   * GET /orders?status=new
+   * Fetch orders for a shop (optionally filtered by status or type)
+   * GET /orders/shop/{shop_id}?status=pending
    */
-  getOrders: (status?: OrderStatus) => {
-    const qs = status ? `?status=${status}` : '';
-    return apiClient.get<PaginatedResponse<Order>>(`${ORDERS_BASE}${qs}`);
+  getShopOrders: (shopId: string, params?: { status?: string; orderType?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.orderType) query.set('order_type', params.orderType);
+    const qs = query.toString();
+    return apiClient.get<PaginatedResponse<Order>>(`/orders/shop/${shopId}${qs ? `?${qs}` : ''}`);
   },
 
   /**
    * Get a single order by ID
-   * GET /orders/:id
+   * GET /orders/{id}
    */
   getOrderById: (id: string) =>
-    apiClient.get<ApiResponse<Order>>(`${ORDERS_BASE}/${id}`),
+    apiClient.get<ApiResponse<Order>>(`/orders/${id}`),
 
   /**
-   * Accept an incoming order (move to 'preparing')
-   * PATCH /orders/:id/accept
+   * Update order status and details (e.g. accept, prepare, ready)
+   * PATCH /orders/{id}
    */
-  acceptOrder: (id: string, data?: AcceptOrderRequest) =>
-    apiClient.patch<ApiResponse<Order>>(`${ORDERS_BASE}/${id}/accept`, data),
+  updateOrderStatus: (id: string, data: UpdateOrderRequest) =>
+    apiClient.patch<ApiResponse<Order>>(`/orders/${id}`, data),
 
   /**
-   * Mark an order as ready for pickup
-   * PATCH /orders/:id/ready
+   * Get AI suggestions for Chitty (List) orders
+   * GET /orders/{id}/suggestions
    */
-  markReady: (id: string) =>
-    apiClient.patch<ApiResponse<Order>>(`${ORDERS_BASE}/${id}/ready`),
-
-  /**
-   * Complete an order (customer picked up)
-   * PATCH /orders/:id/complete
-   */
-  completeOrder: (id: string) =>
-    apiClient.patch<ApiResponse<Order>>(`${ORDERS_BASE}/${id}/complete`),
-
-  /**
-   * Reject an order
-   * PATCH /orders/:id/reject
-   */
-  rejectOrder: (id: string, data?: RejectOrderRequest) =>
-    apiClient.patch<ApiResponse<Order>>(`${ORDERS_BASE}/${id}/reject`, data),
+  getOrderSuggestions: (id: string) =>
+    apiClient.get<ApiResponse<any>>(`/orders/${id}/suggestions`),
 };
