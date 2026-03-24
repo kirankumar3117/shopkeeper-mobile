@@ -80,7 +80,7 @@ export const shopService = {
    * PATCH /shops/me/status
    */
   updateStatus: (isOnline: boolean) =>
-    apiClient.put<ApiResponse<Shop>>(`/shop`, { is_online: isOnline }),
+    apiClient.put<ApiResponse<Shop>>(`/shop/`, { is_online: isOnline }),
 
   /**
    * Update shop profile details
