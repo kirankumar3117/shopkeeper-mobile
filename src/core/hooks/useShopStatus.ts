@@ -28,15 +28,19 @@ export function useShopStatus(): UseShopStatusReturn {
     setOnline(value);
     setTogglingStatus(true);
 
+    if (__DEV__) console.log('🔄 ToggleShopStatus: Start', { value });
     try {
-      await shopService.updateStatus(value);
+      const response = await shopService.updateStatus(value);
+      if (__DEV__) console.log('✅ ToggleShopStatus: Success', response);
       // Server confirmed — nothing extra to do, store is already set
     } catch (err) {
+      if (__DEV__) console.error('❌ ToggleShopStatus: Failed', err);
       // Rollback on failure
       setOnline(!value);
       const msg = err instanceof ApiError ? err.message : 'Failed to update shop status';
       Alert.alert('Error', msg);
     } finally {
+      if (__DEV__) console.log('🏁 ToggleShopStatus: Done');
       setTogglingStatus(false);
     }
   }, [setOnline, setTogglingStatus]);
