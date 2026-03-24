@@ -1,99 +1,114 @@
 /**
  * useInventory — Inventory Management Hook
- * Wraps inventoryService calls with local state management.
+ * Wraps inventoryService calls and syncs with inventoryStore (Zustand).
+ * Follows the same pattern as useOrders.
  *
  * Usage in Inventory screen:
- *   const { products, loading, fetchProducts, addProduct, toggleStock, saveChanges } = useInventory();
+ *   const { loading, saving, error, fetchProducts, addProduct, toggleStock,
+ *           updatePrice, saveChanges, removeProduct, hasUnsavedChanges, clearError } = useInventory();
+ *   const { inventory } = useInventoryStore();
  */
 
 import { inventoryService } from '@/src/core/api/services/inventory';
-import type { AddToInventoryRequest, InventoryItem } from '@/src/core/api/types';
+import type { AddToInventoryRequest } from '@/src/core/api/types';
 import { ApiError } from '@/src/core/api/types';
+import { useInventoryStore } from '@/src/core/inventoryStore';
 import { useCallback, useState } from 'react';
 
 interface UseInventoryReturn {
-  products: InventoryItem[];
   loading: boolean;
   saving: boolean;
   error: string | null;
-  /** Fetch products from API */
+  /** Fetch products from API and sync to store */
   fetchProducts: () => Promise<void>;
-  /** Add a new product */
+  /** Add a new product to inventory via API */
   addProduct: (data: AddToInventoryRequest) => Promise<boolean>;
-  /** Toggle stock status (optimistic update) */
+  /** Toggle stock status (optimistic update in store) */
   toggleStock: (id: string) => void;
-  /** Update a product's price (optimistic update) */
+  /** Update a product's price (optimistic update in store) */
   updatePrice: (id: string, newPrice: number) => void;
-  /** Save all changes to API (Promise.all patches) */
+  /** Save all pending changes to API */
   saveChanges: () => Promise<boolean>;
+  /** Remove a product from inventory via API */
+  removeProduct: (id: string) => Promise<boolean>;
   /** Track whether local edits exist */
   hasUnsavedChanges: boolean;
   clearError: () => void;
 }
 
 export function useInventory(): UseInventoryReturn {
-  const [products, setProducts] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Track local changes for bulk save
+  // Track which product IDs have been locally modified (for bulk save)
   const [changedProductIds, setChangedProductIds] = useState<Set<string>>(new Set());
 
+  const {
+    inventory,
+    setInventory,
+    addItem,
+    updateItem,
+    removeItem,
+  } = useInventoryStore();
+
+  // ── Fetch all inventory from API ──────────────────────────
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await inventoryService.getMyInventory();
-      setProducts(response.data);
+      setInventory(response);
       setHasUnsavedChanges(false);
       setChangedProductIds(new Set());
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Failed to load products';
       setError(msg);
+      console.log("error", err)
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setInventory]);
 
+  // ── Add new product to inventory via API ──────────────────
   const addProduct = useCallback(async (data: AddToInventoryRequest): Promise<boolean> => {
     setError(null);
     try {
       const response = await inventoryService.addToInventory(data);
-      // Prepend the newly created product
-      setProducts(prev => [response.data, ...prev]);
+      addItem(response.data);
       return true;
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Failed to add product';
       setError(msg);
       return false;
     }
-  }, []);
+  }, [addItem]);
 
+  // ── Toggle stock (optimistic — saved on bulk save) ────────
   const toggleStock = useCallback((id: string) => {
-    setProducts(prev =>
-      prev.map(p => (p.id === id ? { ...p, stock: p.stock > 0 ? 0 : 10 } : p))
-    );
+    const item = inventory.find(p => p.id === id);
+    if (!item) return;
+    updateItem(id, { stock: item.stock > 0 ? 0 : 10 });
     setChangedProductIds(prev => new Set(prev).add(id));
     setHasUnsavedChanges(true);
-  }, []);
+  }, [inventory, updateItem]);
 
+  // ── Update price (optimistic — saved on bulk save) ────────
   const updatePrice = useCallback((id: string, newPrice: number) => {
-    setProducts(prev =>
-      prev.map(p => (p.id === id ? { ...p, price: newPrice } : p))
-    );
+    updateItem(id, { price: newPrice });
     setChangedProductIds(prev => new Set(prev).add(id));
     setHasUnsavedChanges(true);
-  }, []);
+  }, [updateItem]);
 
+  // ── Bulk save all changed items via API ───────────────────
   const saveChanges = useCallback(async (): Promise<boolean> => {
     if (changedProductIds.size === 0) return true;
 
     setSaving(true);
     setError(null);
     try {
-      const changedProducts = products.filter(p => changedProductIds.has(p.id));
+      const changedProducts = inventory.filter(p => changedProductIds.has(p.id));
       await Promise.all(
         changedProducts.map(p =>
           inventoryService.updateInventory(p.id, { price: p.price, stock: p.stock })
@@ -110,12 +125,27 @@ export function useInventory(): UseInventoryReturn {
     } finally {
       setSaving(false);
     }
-  }, [products, changedProductIds]);
+  }, [inventory, changedProductIds]);
+
+  // ── Remove product from inventory via API ─────────────────
+  const removeProduct = useCallback(async (id: string): Promise<boolean> => {
+    // Optimistic removal
+    removeItem(id);
+    try {
+      await inventoryService.removeFromInventory(id);
+      return true;
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Failed to remove product';
+      setError(msg);
+      // Rollback: re-fetch from server
+      await fetchProducts();
+      return false;
+    }
+  }, [removeItem, fetchProducts]);
 
   const clearError = useCallback(() => setError(null), []);
 
   return {
-    products,
     loading,
     saving,
     error,
@@ -124,6 +154,7 @@ export function useInventory(): UseInventoryReturn {
     toggleStock,
     updatePrice,
     saveChanges,
+    removeProduct,
     hasUnsavedChanges,
     clearError,
   };

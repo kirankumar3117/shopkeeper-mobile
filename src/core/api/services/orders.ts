@@ -6,22 +6,24 @@
 import { apiClient } from '../client';
 import type {
     ApiResponse,
+    MerchantOrdersResponse,
     Order,
-    PaginatedResponse,
     UpdateOrderRequest,
 } from '../types';
 
 export const ordersService = {
   /**
-   * Fetch orders for a shop (optionally filtered by status or type)
-   * GET /orders/shop/{shop_id}?status=pending
+   * Fetch orders for the current merchant (resolved by auth token)
+   * GET /orders/merchant?skip=0&limit=20&status=...&order_type=...
    */
-  getShopOrders: (shopId: string, params?: { status?: string; orderType?: string }) => {
+  getMerchantOrders: (params?: { skip?: number; limit?: number; status?: string; order_type?: string }) => {
     const query = new URLSearchParams();
+    if (params?.skip !== undefined) query.set('skip', params.skip.toString());
+    if (params?.limit !== undefined) query.set('limit', params.limit.toString());
     if (params?.status) query.set('status', params.status);
-    if (params?.orderType) query.set('order_type', params.orderType);
+    if (params?.order_type) query.set('order_type', params.order_type);
     const qs = query.toString();
-    return apiClient.get<PaginatedResponse<Order>>(`/orders/shop/${shopId}${qs ? `?${qs}` : ''}`);
+    return apiClient.get<MerchantOrdersResponse>(`/orders/merchant${qs ? `?${qs}` : ''}`);
   },
 
   /**
@@ -32,16 +34,9 @@ export const ordersService = {
     apiClient.get<ApiResponse<Order>>(`/orders/${id}`),
 
   /**
-   * Update order status and details (e.g. accept, prepare, ready)
+   * Update order status and details (e.g. accept, prepare, ready, reject)
    * PATCH /orders/{id}
    */
   updateOrderStatus: (id: string, data: UpdateOrderRequest) =>
     apiClient.patch<ApiResponse<Order>>(`/orders/${id}`, data),
-
-  /**
-   * Get AI suggestions for Chitty (List) orders
-   * GET /orders/{id}/suggestions
-   */
-  getOrderSuggestions: (id: string) =>
-    apiClient.get<ApiResponse<any>>(`/orders/${id}/suggestions`),
 };

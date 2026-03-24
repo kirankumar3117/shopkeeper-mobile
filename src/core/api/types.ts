@@ -15,7 +15,7 @@ export interface ApiResponse<T> {
 /** Paginated API response */
 export interface PaginatedResponse<T> {
   success: boolean;
-  data: T[];
+  data?: T[];
   total: number;
   page: number;
   limit: number;
@@ -199,6 +199,7 @@ export interface InventoryItem {
   product_id: string;
   name: string; // derived from master
   price: number;
+  unit: string;
   stock: number;
   image_url?: string;
 }
@@ -224,29 +225,47 @@ export interface CreateProductRequestPayload {
 
 // ─── Order Types ─────────────────────────────────────────
 
-export interface OrderItem {
+export interface OrderProduct {
   id: string;
   name: string;
-  qty: number;
-  price: number;
   image_url?: string;
+  unit?: string;
+  mrp?: number;
 }
 
-export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'picked_up';
-export type OrderType = 'list' | 'image' | 'pre_order';
+export interface OrderItem {
+  id: string;
+  product_id: string;
+  quantity: number;
+  price_at_time_of_order: number;
+  special_instructions?: string | null;
+  product: OrderProduct;
+}
+
+export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'picked_up' | 'rejected';
+export type OrderType = 'instant' | 'pre_order' | 'list' | 'image';
 
 export interface Order {
   id: string;
+  order_number?: string;
+  customer_id: string;
+  shop_id: string;
   status: OrderStatus;
   total_amount: number;
-  item_count?: number;
-  customer_name?: string;
-  customer_phone?: string;
-  type: OrderType;
+  order_type: OrderType;
   items: OrderItem[];
-  list_image_url?: string; // For Chitty orders
-  estimated_preparation_minutes?: number;
+  list_image_urls?: string[] | null;
+  order_notes?: string | null;
+  scheduled_pickup_time?: string;
+  estimated_preparation_minutes?: number | null;
   created_at?: string;
+}
+
+export interface MerchantOrdersResponse {
+  data: Order[];
+  total_count: number;
+  total_pages: number;
+  current_page: number;
 }
 
 export interface UpdateOrderRequest {

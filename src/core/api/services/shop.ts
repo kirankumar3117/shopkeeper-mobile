@@ -5,10 +5,10 @@
 
 import { apiClient } from '../client';
 import type {
-    ApiResponse,
-    RegisterShopRequest,
-    RegisterShopResponse,
-    Shop,
+  ApiResponse,
+  RegisterShopRequest,
+  RegisterShopResponse,
+  Shop,
 } from '../types';
 
 const SHOPS_BASE = '/shops';
@@ -80,7 +80,7 @@ export const shopService = {
    * PATCH /shops/me/status
    */
   updateStatus: (isOnline: boolean) =>
-    apiClient.patch<ApiResponse<Shop>>(`${SHOPS_BASE}/me/status`, { is_online: isOnline }),
+    apiClient.put<ApiResponse<Shop>>(`/shop`, { is_online: isOnline }),
 
   /**
    * Update shop profile details

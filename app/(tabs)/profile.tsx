@@ -2,8 +2,8 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Modal, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-// Import the Store we just updated
 import { useAuthStore } from '@/src/core/store';
+import { useShopStatus } from '@/src/core/hooks/useShopStatus';
 import { Bell, ChevronRight, Eye, EyeOff, Globe, Lock, LogOut, Printer, ShieldCheck, User } from 'lucide-react-native';
 
 // --- Reusable Settings Row Component ---
@@ -43,9 +43,11 @@ const SettingsRow = ({ icon, label, value, isSwitch, enabled, onToggle, onPress,
 export default function ProfileScreen() {
   const router = useRouter();
   const { logout, ownerPin, setOwnerPin, verifyPin } = useAuthStore();
-  
+
+  // Shop online/offline — shared globally with Orders screen
+  const { isOnline: isShopOpen, isToggling, toggleStatus } = useShopStatus();
+
   // Local State
-  const [isShopOpen, setShopOpen] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showEarnings, setShowEarnings] = useState(false); // Default hidden for safety
   
@@ -216,12 +218,15 @@ export default function ProfileScreen() {
             Store Controls
           </Text>
           <View className="bg-white mb-6 border-t border-b border-gray-100">
-            <SettingsRow 
-              icon={<ShieldCheck size={18} color="#4B5563" />} 
-              label="Accepting Orders" 
-              isSwitch 
-              enabled={isShopOpen} 
-              onToggle={() => setShopOpen(!isShopOpen)} 
+            <SettingsRow
+              icon={<ShieldCheck size={18} color={isShopOpen ? '#16A34A' : '#4B5563'} />}
+              label={isToggling
+                ? (isShopOpen ? 'Going Online...' : 'Going Offline...')
+                : 'Accepting Orders'
+              }
+              isSwitch
+              enabled={isShopOpen}
+              onToggle={() => toggleStatus(!isShopOpen)}
             />
           </View>
 

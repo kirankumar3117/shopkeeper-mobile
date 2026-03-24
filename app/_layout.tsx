@@ -17,8 +17,8 @@ export default function RootLayout() {
     if (!isAuthenticated && inTabsGroup) {
       // Redirect to phone entry if not logged in
       router.replace('/');
-    } else if (isAuthenticated && !inTabsGroup && segments[0] !== 'shop-setup') {
-      // Redirect to orders dashboard if logged in but not in tabs or shop-setup
+    } else if (isAuthenticated && !inTabsGroup && segments[0] !== 'shop-setup' && segments[0] !== 'order-details') {
+      // Redirect to orders dashboard if logged in but not in tabs, shop-setup, or order-details
       router.replace('/(tabs)/orders');
     }
   }, [isAuthenticated, segments]);
@@ -32,6 +32,7 @@ export default function RootLayout() {
       <Stack.Screen name="login" />
       <Stack.Screen name="shop-setup" />
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="order-details/[id]" />
     </Stack>
   );
 }

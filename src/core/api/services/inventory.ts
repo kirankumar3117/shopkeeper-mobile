@@ -5,12 +5,12 @@
 
 import { apiClient } from '../client';
 import type {
-    AddToInventoryRequest,
-    ApiResponse,
-    InventoryItem,
-    MasterProduct,
-    PaginatedResponse,
-    UpdateInventoryRequest,
+  AddToInventoryRequest,
+  ApiResponse,
+  InventoryItem,
+  MasterProduct,
+  PaginatedResponse,
+  UpdateInventoryRequest,
 } from '../types';
 
 export const inventoryService = {
@@ -25,7 +25,7 @@ export const inventoryService = {
     if (params?.search) query.set('search', params.search);
     if (params?.category_id) query.set('category_id', params.category_id);
     if (params?.limit) query.set('limit', String(params.limit));
-    
+
     // As per guide: Do NOT pass available_only=true so the merchant sees all master products.
     const qs = query.toString();
     return apiClient.get<PaginatedResponse<MasterProduct>>(
@@ -40,7 +40,7 @@ export const inventoryService = {
    * GET /inventory/my-inventory
    */
   getMyInventory: () =>
-    apiClient.get<PaginatedResponse<InventoryItem>>('/inventory/my-inventory'),
+    apiClient.get<InventoryItem[]>('/inventory/merchant'),
 
   /**
    * Add a product from master catalog to shop inventory

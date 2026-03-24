@@ -2,22 +2,24 @@ import { CheckCircle, ShoppingBag } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
+import type { OrderItem } from '@/src/core/api/types';
+
 interface DigitalListProps {
-  items: any[];
+  items: OrderItem[];
   status: string;
 }
 
 export function DigitalOrderView({ items, status }: DigitalListProps) {
-  const [packedItems, setPackedItems] = useState<Record<number, boolean>>({});
+  const [packedItems, setPackedItems] = useState<Record<string, boolean>>({});
 
-  const togglePack = (id: number) => {
+  const togglePack = (id: string) => {
     // 🔒 CONSTRAINT: Only allow checking boxes if status is 'preparing'
     if (status === 'preparing') {
       setPackedItems(prev => ({ ...prev, [id]: !prev[id] }));
     }
   };
 
-  const calculateTotal = () => items.reduce((sum, item) => sum + (item.price || 0), 0);
+  const calculateTotal = () => items.reduce((sum, item) => sum + (item.price_at_time_of_order * item.quantity), 0);
 
   return (
     <View className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -48,14 +50,14 @@ export function DigitalOrderView({ items, status }: DigitalListProps) {
                 </View>
               )}
               
-              <View>
+              <View className="flex-1">
                 <Text className={`text-base font-medium ${isPacked ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
-                  {item.name}
+                  {item.product?.name || 'Unknown Item'}
                 </Text>
-                <Text className="text-gray-500 text-xs">{item.qty}</Text>
+                <Text className="text-gray-500 text-xs">Qty: {item.quantity}</Text>
               </View>
             </View>
-            <Text className="font-bold text-gray-700">₹{item.price}</Text>
+            <Text className="font-bold text-gray-700">₹{item.price_at_time_of_order * item.quantity}</Text>
           </TouchableOpacity>
         );
       })}
@@ -63,7 +65,7 @@ export function DigitalOrderView({ items, status }: DigitalListProps) {
       {/* Auto-Calculated Total Footer */}
       <View className="p-4 bg-gray-50 flex-row justify-between items-center border-t border-gray-100">
         <Text className="font-bold text-gray-500">Total System Bill</Text>
-        <Text className="text-2xl font-bold text-green-700">₹{calculateTotal()}.00</Text>
+        <Text className="text-2xl font-bold text-green-700">₹{calculateTotal().toFixed(2)}</Text>
       </View>
     </View>
   );

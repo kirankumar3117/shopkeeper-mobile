@@ -1,111 +1,194 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
-import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, InteractionManager, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Import Data
-import { MOCK_ORDERS } from '@/src/data/mockData';
+// Import from global store
+import { useOrderStore } from '@/src/core/orderStore';
+import { useOrders } from '@/src/core/hooks/useOrders';
 
-// Import Components
-import { DigitalOrderView } from '@/src/components/DigitalOrderView';
-import { HandwrittenOrderView } from '@/src/components/HandwrittenOrderView';
-import { OrderActionButtons } from '@/src/components/OrderActionButtons';
+// Import Components (lazy loaded)
+const DigitalOrderView = React.lazy(() =>
+  import('@/src/components/DigitalOrderView').then(m => ({ default: m.DigitalOrderView }))
+);
+const HandwrittenOrderView = React.lazy(() =>
+  import('@/src/components/HandwrittenOrderView').then(m => ({ default: m.HandwrittenOrderView }))
+);
+const OrderActionButtons = React.lazy(() =>
+  import('@/src/components/OrderActionButtons').then(m => ({ default: m.OrderActionButtons }))
+);
+
+// Lightweight loading placeholder
+function ContentSkeleton() {
+  return (
+    <View className="flex-1 px-4 py-6">
+      {/* Skeleton card */}
+      <View className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
+        <View className="h-4 bg-gray-200 rounded-full w-3/4 mb-4" />
+        <View className="h-4 bg-gray-100 rounded-full w-1/2 mb-3" />
+        <View className="h-4 bg-gray-100 rounded-full w-2/3 mb-3" />
+        <View className="h-4 bg-gray-100 rounded-full w-1/3 mb-3" />
+        <View className="h-20 bg-gray-100 rounded-xl mt-2" />
+      </View>
+    </View>
+  );
+}
 
 export default function OrderDetailsScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams();
-  
-  // 1. GET REAL DATA
+  const { id } = useLocalSearchParams<{ id: string }>();
+
+  // Defer heavy rendering until navigation animation completes
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      setIsReady(true);
+    });
+    return () => task.cancel();
+  }, []);
+
+  // Use global store for order data
+  const { orders } = useOrderStore();
+  const { accept, reject, markReady, complete } = useOrders();
+
+  // 1. GET REAL DATA FROM STORE
   const order = useMemo(() => {
-    return MOCK_ORDERS.find(o => o.id === id);
-  }, [id]);
+    return orders.find(o => o.id === id);
+  }, [id, orders]);
+
+  // Determine order type
+  const isHandwritten = !!(order?.list_image_urls && order.list_image_urls.length > 0 && order.items.length === 0);
+  const orderType = isHandwritten ? 'image' : 'list';
 
   // 2. LOCAL STATE (Lifted State)
   const [manualTotal, setManualTotal] = useState(order?.total_amount?.toString() || '');
 
-  // Safety Check
+  // 3. HANDLERS (Controller Logic)
+  const handleReject = useCallback(() => {
+    if (!order) return;
+    Alert.alert("Confirm Reject", "This cannot be undone.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Reject Order", style: "destructive", onPress: async () => {
+        await reject(order.id);
+        router.back();
+      }}
+    ]);
+  }, [order, reject, router]);
+
+  const handleAccept = useCallback(async () => {
+    if (!order) return;
+    const total = manualTotal ? parseFloat(manualTotal) : undefined;
+    const success = await accept(order.id, total);
+    if (success) {
+      Alert.alert("Success", isHandwritten ? `Bill sent: ₹${manualTotal}` : "Order Accepted!");
+      if (order.status === 'pending') router.back();
+    }
+  }, [order, manualTotal, accept, isHandwritten, router]);
+
+  const handleMarkReady = useCallback(async () => {
+    if (!order) return;
+    const success = await markReady(order.id);
+    if (success) {
+      Alert.alert("Ready!", "Customer notified.");
+      router.back();
+    }
+  }, [order, markReady, router]);
+
+  const handleComplete = useCallback(async () => {
+    if (!order) return;
+    const success = await complete(order.id);
+    if (success) {
+      Alert.alert("Completed", "Order closed successfully.");
+      router.back();
+    }
+  }, [order, complete, router]);
+
+  // Safety Check — show not found
   if (!order) {
     return (
-      <View className="flex-1 justify-center items-center">
-        <Text>Order Not Found</Text>
+      <View className="flex-1 bg-gray-50">
+        <SafeAreaView className="flex-1">
+          <View className="bg-white px-4 py-3 border-b border-gray-100 flex-row items-center shadow-sm z-10">
+            <TouchableOpacity onPress={() => router.back()} className="p-2 mr-2 bg-gray-100 rounded-full">
+              <ChevronLeft size={24} color="#374151" />
+            </TouchableOpacity>
+            <Text className="text-lg font-bold text-gray-900">Order Details</Text>
+          </View>
+          <View className="flex-1 justify-center items-center">
+            <Text className="text-gray-500 text-lg">Order Not Found</Text>
+            <TouchableOpacity onPress={() => router.back()} className="mt-4 bg-gray-100 px-4 py-2 rounded-xl">
+              <Text className="text-gray-600 font-medium">Go Back</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
       </View>
     );
   }
-
-  // 3. HANDLERS (Controller Logic)
-  const handleReject = () => {
-    Alert.alert("Confirm Reject", "This cannot be undone.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Reject Order", style: "destructive", onPress: () => router.back() }
-    ]);
-  };
-
-  const handleAccept = () => {
-    // Logic for both "Accept" and "Send Bill"
-    Alert.alert("Success", order.type === 'image' ? `Bill sent: ₹${manualTotal}` : "Order Accepted!");
-    if(order.status === 'pending') router.back();
-  };
-
-  const handleMarkReady = () => {
-    Alert.alert("Ready!", "Customer notified.");
-    router.back();
-  };
-
-  const handleComplete = () => {
-    Alert.alert("Completed", "Order closed successfully.");
-    router.back();
-  };
 
   return (
     <View className="flex-1 bg-gray-50">
       <SafeAreaView className="flex-1">
 
-        {/* Header */}
+        {/* Header — renders immediately, lightweight */}
         <View className="bg-white px-4 py-3 border-b border-gray-100 flex-row items-center shadow-sm z-10">
           <TouchableOpacity onPress={() => router.back()} className="p-2 mr-2 bg-gray-100 rounded-full">
             <ChevronLeft size={24} color="#374151" />
           </TouchableOpacity>
-          <View>
-            <Text className="text-lg font-bold text-gray-900">Order {order.id}</Text>
+          <View className="flex-1">
+            <Text className="text-lg font-bold text-gray-900" numberOfLines={1}>Order {order.id.slice(0, 8)}...</Text>
             <Text className="text-xs text-gray-500 font-medium capitalize">
               {order.status === 'pending' ? '⚡ New Request' : order.status}
             </Text>
           </View>
         </View>
 
-        {/* Content Area */}
-        <ScrollView className="flex-1 px-4 py-4">
-          
-          {order.type === 'image' ? (
-            <HandwrittenOrderView 
-              imageUri={order.list_image_url || ''} 
-              total={manualTotal}
-              onUpdateTotal={setManualTotal}
-              status={order.status}
-            />
-          ) : (
-            <DigitalOrderView 
-              items={order.items} 
-              status={order.status}
-            />
-          )}
+        {/* Content Area — lazy loaded after navigation completes */}
+        {!isReady ? (
+          <ContentSkeleton />
+        ) : (
+          <>
+            <ScrollView className="flex-1 px-4 py-4">
+              <React.Suspense fallback={
+                <View className="flex-1 justify-center items-center py-20">
+                  <ActivityIndicator size="large" color="#16A34A" />
+                </View>
+              }>
+                {isHandwritten ? (
+                  <HandwrittenOrderView
+                    imageUri={order.list_image_urls![0]}
+                    total={manualTotal}
+                    onUpdateTotal={setManualTotal}
+                    status={order.status}
+                  />
+                ) : (
+                  <DigitalOrderView
+                    items={order.items}
+                    status={order.status}
+                  />
+                )}
+              </React.Suspense>
 
-          <View className="h-40" /> 
-        </ScrollView>
+              <View className="h-40" />
+            </ScrollView>
 
-        {/* Bottom Actions */}
-        <View className="absolute bottom-0 w-full bg-white p-4 border-t border-gray-200 shadow-lg">
-          <OrderActionButtons 
-            status={order.status}
-            type={order.type}
-            hasTotal={!!manualTotal}
-            onReject={handleReject}
-            onAccept={handleAccept}
-            onMarkReady={handleMarkReady}
-            onComplete={handleComplete}
-          />
-        </View>
+            {/* Bottom Actions — lazy loaded */}
+            <View className="absolute bottom-0 w-full bg-white p-4 border-t border-gray-200 shadow-lg">
+              <React.Suspense fallback={<View className="h-12" />}>
+                <OrderActionButtons
+                  status={order.status}
+                  type={orderType}
+                  hasTotal={!!manualTotal}
+                  onReject={handleReject}
+                  onAccept={handleAccept}
+                  onMarkReady={handleMarkReady}
+                  onComplete={handleComplete}
+                />
+              </React.Suspense>
+            </View>
+          </>
+        )}
 
       </SafeAreaView>
     </View>

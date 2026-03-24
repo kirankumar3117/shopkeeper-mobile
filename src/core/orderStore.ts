@@ -1,4 +1,3 @@
-import { MOCK_ORDERS } from '@/src/data/mockData'; // Your static data is just the "Initial State" now
 import { create } from 'zustand';
 import type { Order } from './api/types';
 
@@ -6,9 +5,12 @@ interface OrderState {
   orders: Order[];
   isLoading: boolean;
   error: string | null;
+  totalCount: number;
+  totalPages: number;
+  currentPage: number;
   
   // Actions
-  setOrders: (orders: Order[]) => void;
+  setOrders: (orders: Order[], pagination?: { total_count: number; total_pages: number; current_page: number }) => void;
   acceptOrder: (id: string, total?: number) => void;
   markReady: (id: string) => void;
   completeOrder: (id: string) => void;
@@ -19,30 +21,43 @@ interface OrderState {
 }
 
 export const useOrderStore = create<OrderState>((set) => ({
-  orders: MOCK_ORDERS as unknown as Order[],
+  orders: [],
   isLoading: false,
   error: null,
+  totalCount: 0,
+  totalPages: 0,
+  currentPage: 1,
 
   // Sync orders from API
-  setOrders: (orders) => set({ orders, isLoading: false, error: null }),
+  setOrders: (orders, pagination) => set({ 
+    orders, 
+    isLoading: false, 
+    error: null,
+    ...(pagination && {
+      totalCount: pagination.total_count,
+      totalPages: pagination.total_pages,
+      currentPage: pagination.current_page,
+    }),
+  }),
 
   acceptOrder: (id, total) => set((state) => ({
     orders: state.orders.map((order) => 
       order.id === id 
-        ? { ...order, status: 'confirmed', total_amount: total || order.total_amount } 
+        ? { ...order, status: 'preparing' as const, total_amount: total || order.total_amount } 
         : order
     )
   })),
 
   markReady: (id) => set((state) => ({
     orders: state.orders.map((order) => 
-      order.id === id ? { ...order, status: 'ready' } : order
+      order.id === id ? { ...order, status: 'ready' as const } : order
     )
   })),
 
   completeOrder: (id) => set((state) => ({
-    // Remove completed orders from the active list (or move to history)
-    orders: state.orders.filter((order) => order.id !== id)
+    orders: state.orders.map((order) => 
+      order.id === id ? { ...order, status: 'picked_up' as const } : order
+    )
   })),
 
   rejectOrder: (id) => set((state) => ({

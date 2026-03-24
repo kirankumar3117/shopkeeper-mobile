@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
   Easing,
   interpolate,
@@ -69,47 +69,85 @@ interface OrderCardProps {
   status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'picked_up';
   items: OrderItem[];
   total: string;
+  listImageUrls?: string[] | null;
+  order_number?: string | number;
   onExpand: () => void;
   onAccept?: () => void;
   onReject?: () => void;
-  onStatusUpdate?: () => void; 
+  onStatusUpdate?: () => void;
 }
 
-export function OrderCard({ 
-  id, time, paymentMode, status, items, total, 
-  onExpand, onAccept, onReject, onStatusUpdate 
+export function OrderCard({
+  id, time, paymentMode, status, items, total, listImageUrls, order_number,
+  onExpand, onAccept, onReject, onStatusUpdate
 }: OrderCardProps) {
-  
-  const isImageOrder = items.length === 0;
-  const previewItems = items.slice(0, 3);
-  const hasMore = items.length > 3;
+
+  const [isExpanding, setIsExpanding] = useState(false);
+  const isExpandingRef = useRef(false);
+
+  const handleExpand = () => {
+    if (isExpandingRef.current) return;
+    isExpandingRef.current = true;
+    setIsExpanding(true);
+
+    onExpand();
+
+    // Reset after timeout in case navigation is slow
+    setTimeout(() => {
+      isExpandingRef.current = false;
+      setIsExpanding(false);
+    }, 2000);
+  };
+
+  const safeItems = items || [];
+  // Handwritten order: no items but has image URLs
+  const isImageOrder = safeItems.length === 0 && (listImageUrls && listImageUrls.length > 0);
+  const previewItems = safeItems.slice(0, 3);
+  const hasMore = safeItems.length > 3;
 
   const getStatusColor = () => {
-    switch(status) {
+    switch (status) {
       case 'preparing': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'ready': return 'bg-green-100 text-green-800 border-green-200';
-      default: return ''; 
+      default: return '';
+    }
+  };
+
+  // Format time for display
+  const formatTime = (timeStr: string) => {
+    try {
+      const date = new Date(timeStr);
+      if (isNaN(date.getTime())) return timeStr;
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMin = Math.floor(diffMs / 60000);
+      if (diffMin < 1) return 'Just now';
+      if (diffMin < 60) return `${diffMin}min ago`;
+      const diffHr = Math.floor(diffMin / 60);
+      if (diffHr < 24) return `${diffHr}hr ago`;
+      return date.toLocaleDateString();
+    } catch {
+      return timeStr;
     }
   };
 
   return (
     <View className="bg-white rounded-2xl mb-4 shadow-sm border border-gray-100 overflow-visible">
-      
+
       {/* 1. Header Section */}
       <View className="p-4 flex-row justify-between items-start bg-gray-50/50">
-        <View>
-          <Text className="text-lg font-bold text-gray-900">{id}</Text>
+        <View className="flex-1 mr-2">
+          <Text className="text-lg font-bold text-gray-900" numberOfLines={1}>#{order_number}</Text>
           <Text className="text-gray-500 text-xs mt-1 font-medium">
-            {time} •{' '}
-            <Text className={`font-bold ${
-              (paymentMode || '').toLowerCase().includes('cash') ? 'text-orange-500' : 'text-green-600'
-            }`}>
+            {formatTime(time)} •{' '}
+            <Text className={`font-bold ${(paymentMode || '').toLowerCase().includes('cash') ? 'text-orange-500' : 'text-green-600'
+              }`}>
               {paymentMode || 'Cash on Delivery'}
             </Text>
           </Text>
         </View>
 
-        <View className="mt-1 mr-1"> 
+        <View className="mt-1 mr-1">
           {status === 'pending' ? (
             <PulseBadge />
           ) : (
@@ -128,52 +166,63 @@ export function OrderCard({
       <View className="p-4">
         {isImageOrder ? (
           <View>
-             {/* 👇 UPDATED: This entire box is now clickable */}
-             <TouchableOpacity 
-               onPress={onExpand}
-               activeOpacity={0.7}
-               className="flex-row items-center bg-gray-50 p-3 rounded-xl border border-dashed border-gray-300 mb-3"
-             >
-               <Text className="text-2xl mr-3">📄</Text>
-               <View>
-                 <Text className="text-gray-900 font-bold text-sm">Handwritten List</Text>
-                 <Text className="text-gray-400 text-xs">Tap to view full details</Text>
-               </View>
-             </TouchableOpacity>
+            {/* 👇 This entire box is now clickable */}
+            <TouchableOpacity
+              onPress={handleExpand}
+              activeOpacity={0.7}
+              disabled={isExpanding}
+              className="flex-row items-center bg-gray-50 p-3 rounded-xl border border-dashed border-gray-300 mb-3"
+            >
+              {isExpanding ? (
+                <ActivityIndicator size="small" color="#16A34A" style={{ marginRight: 12 }} />
+              ) : (
+                <Text className="text-2xl mr-3">📄</Text>
+              )}
+              <View>
+                <Text className="text-gray-900 font-bold text-sm">Handwritten List</Text>
+                <Text className="text-gray-400 text-xs">{isExpanding ? 'Loading...' : 'Tap to view full details'}</Text>
+              </View>
+            </TouchableOpacity>
 
-             <View className="items-end">
-                <TouchableOpacity 
-                  onPress={onExpand}
-                  className="bg-green-50 border border-green-200 px-4 py-2 rounded-xl"
-                >
-                  <Text className="font-bold text-green-700 text-sm">Expand ↘</Text>
-                </TouchableOpacity>
-             </View>
+            <View className="items-end">
+              <TouchableOpacity
+                onPress={handleExpand}
+                disabled={isExpanding}
+                className={`border px-4 py-2 rounded-xl flex-row items-center ${isExpanding ? 'bg-green-100 border-green-300' : 'bg-green-50 border-green-200'}`}
+              >
+                {isExpanding ? (
+                  <ActivityIndicator size="small" color="#15803D" style={{ marginRight: 6 }} />
+                ) : null}
+                <Text className="font-bold text-green-700 text-sm">{isExpanding ? 'Loading...' : 'Expand ↘'}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
           <View className="flex-row">
             <View className="flex-1 space-y-3">
               {previewItems.map((item, index) => (
-                <View key={index} className="flex-row items-center">
+                <View key={item.id || index} className="flex-row items-center">
                   <View className="h-2 w-2 rounded-full bg-green-400 mr-2" />
                   <Text className="text-gray-700 text-base flex-1">
-                    {item.name} <Text className="font-bold text-gray-900">x{item.qty}</Text>
+                    {item.product?.name || 'Unknown Item'} <Text className="font-bold text-gray-900">x{item.quantity}</Text>
                   </Text>
                 </View>
               ))}
               {hasMore && <Text className="text-gray-400 pl-4 font-bold text-lg tracking-widest">. . .</Text>}
             </View>
 
-            {hasMore && (
-              <View className="justify-end pl-2">
-                <TouchableOpacity 
-                  onPress={onExpand}
-                  className="bg-green-50 border border-green-200 px-4 py-2 rounded-xl"
-                >
-                  <Text className="font-bold text-green-700 text-sm">Expand ↘</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+            <View className="justify-end pl-2">
+              <TouchableOpacity
+                onPress={handleExpand}
+                disabled={isExpanding}
+                className={`border px-4 py-2 rounded-xl flex-row items-center ${isExpanding ? 'bg-green-100 border-green-300' : 'bg-green-50 border-green-200'}`}
+              >
+                {isExpanding && (
+                  <ActivityIndicator size="small" color="#15803D" style={{ marginRight: 6 }} />
+                )}
+                <Text className="font-bold text-green-700 text-sm">{isExpanding ? 'Loading...' : 'Expand ↘'}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </View>
@@ -195,8 +244,8 @@ export function OrderCard({
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity 
-            onPress={onStatusUpdate} 
+          <TouchableOpacity
+            onPress={onStatusUpdate}
             className={`w-full py-3 rounded-xl items-center shadow-sm ${status === 'preparing' ? 'bg-blue-600 shadow-blue-200' : 'bg-green-600 shadow-green-200'}`}
           >
             <Text className="text-white font-bold">

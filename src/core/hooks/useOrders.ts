@@ -3,14 +3,13 @@
  * Wraps ordersService calls and syncs with orderStore.
  *
  * Usage in Orders screen:
- *   const { orders, loading, fetchOrders, accept, markReady, complete } = useOrders();
+ *   const { orders, loading, fetchOrders, accept, markReady, complete, reject } = useOrders();
  */
 
 import { ordersService } from '@/src/core/api/services/orders';
 import type { OrderStatus } from '@/src/core/api/types';
 import { ApiError } from '@/src/core/api/types';
 import { useOrderStore } from '@/src/core/orderStore';
-import { useAuthStore } from '@/src/core/store';
 import { useCallback, useState } from 'react';
 
 interface UseOrdersReturn {
@@ -18,14 +17,14 @@ interface UseOrdersReturn {
   error: string | null;
   /** Fetch orders from API and sync to store */
   fetchOrders: (status?: OrderStatus) => Promise<void>;
-  /** Accept an order (optimistic + API) */
+  /** Accept an order (optimistic + API) — moves to 'preparing' */
   accept: (id: string, total?: number) => Promise<boolean>;
   /** Mark order as ready (optimistic + API) */
   markReady: (id: string) => Promise<boolean>;
-  /** Complete an order (optimistic + API) */
+  /** Complete an order (optimistic + API) — moves to 'picked_up' */
   complete: (id: string) => Promise<boolean>;
   /** Reject an order (optimistic + API) */
-  reject: (id: string, reason?: string) => Promise<boolean>;
+  reject: (id: string) => Promise<boolean>;
   clearError: () => void;
 }
 
@@ -41,28 +40,36 @@ export function useOrders(): UseOrdersReturn {
     rejectOrder: optimisticReject,
   } = useOrderStore();
 
-  const { shopId } = useAuthStore();
-
   const fetchOrders = useCallback(async (status?: OrderStatus) => {
-    if (!shopId) return;
     setLoading(true);
     setError(null);
     try {
-      const response = await ordersService.getShopOrders(shopId, { status });
-      setOrders(response.data);
+      const response = await ordersService.getMerchantOrders({ 
+        skip: 0, 
+        limit: 50,
+        status,
+      });
+      setOrders(response.data, {
+        total_count: response.total_count,
+        total_pages: response.total_pages,
+        current_page: response.current_page,
+      });
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Failed to load orders';
       setError(msg);
     } finally {
       setLoading(false);
     }
-  }, [setOrders, shopId]);
+  }, [setOrders]);
 
   const accept = useCallback(async (id: string, total?: number): Promise<boolean> => {
     // Optimistic update first
     optimisticAccept(id, total);
     try {
-      await ordersService.updateOrderStatus(id, { status: 'confirmed', total_amount: total });
+      await ordersService.updateOrderStatus(id, { 
+        status: 'preparing', 
+        total_amount: total,
+      });
       return true;
     } catch (err) {
       // Rollback: re-fetch from server if API fails
@@ -99,10 +106,10 @@ export function useOrders(): UseOrdersReturn {
     }
   }, [optimisticComplete, fetchOrders]);
 
-  const reject = useCallback(async (id: string, reason?: string): Promise<boolean> => {
+  const reject = useCallback(async (id: string): Promise<boolean> => {
     optimisticReject(id);
     try {
-      await ordersService.updateOrderStatus(id, { status: 'pending' }); // Fallback
+      await ordersService.updateOrderStatus(id, { status: 'rejected' });
       return true;
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Failed to reject order';
