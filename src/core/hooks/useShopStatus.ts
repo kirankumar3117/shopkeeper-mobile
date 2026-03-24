@@ -20,10 +20,24 @@ interface UseShopStatusReturn {
   toggleStatus: (value: boolean) => Promise<void>;
 }
 
+import { useOrderStore } from '@/src/core/orderStore';
+
 export function useShopStatus(): UseShopStatusReturn {
   const { isOnline, isTogglingStatus, setOnline, setTogglingStatus } = useShopStore();
 
   const toggleStatus = useCallback(async (value: boolean) => {
+    // If trying to go offline, check for pending orders first
+    if (!value) {
+      const pendingOrders = useOrderStore.getState().orders.filter(o => o.status === 'pending');
+      if (pendingOrders.length > 0) {
+        Alert.alert(
+          'Cannot Go Offline',
+          'You have new pending orders. Please accept or reject them before going offline.'
+        );
+        return;
+      }
+    }
+
     // Optimistic update immediately so UI responds fast
     setOnline(value);
     setTogglingStatus(true);
