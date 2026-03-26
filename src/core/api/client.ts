@@ -84,7 +84,7 @@ async function request<T>(
     // Dev logging
     if (__DEV__) {
       const emoji = response.ok ? '✅' : '❌';
-      console.log(`${emoji} [${response.status}] ${endpoint}`, 
+      console.log(`${emoji} [${response.status}] ${endpoint}`,
         typeof data === 'object' ? JSON.stringify(data).slice(0, 300) : data
       );
     }
@@ -117,7 +117,7 @@ async function request<T>(
     }
 
     return data as T;
-  } catch (error) {
+  } catch (error: any) {
     clearTimeout(timeoutId);
 
     // Re-throw ApiError as-is
@@ -126,7 +126,7 @@ async function request<T>(
     }
 
     // Handle abort/timeout
-    if (error instanceof DOMException && error.name === 'AbortError') {
+    if (error?.name === 'AbortError') {
       throw new ApiError(
         'Request timed out. Check your internet connection.',
         0,
@@ -210,21 +210,21 @@ async function upload<T>(
 // ─── Public API ──────────────────────────────────────────
 
 export const apiClient = {
-  get:    <T>(endpoint: string, options?: RequestOptions) => 
+  get: <T>(endpoint: string, options?: RequestOptions) =>
     request<T>('GET', endpoint, undefined, options),
 
-  post:   <T>(endpoint: string, body?: unknown, options?: RequestOptions) => 
+  post: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     request<T>('POST', endpoint, body, options),
 
-  put:    <T>(endpoint: string, body?: unknown, options?: RequestOptions) => 
+  put: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     request<T>('PUT', endpoint, body, options),
 
-  patch:  <T>(endpoint: string, body?: unknown, options?: RequestOptions) => 
+  patch: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     request<T>('PATCH', endpoint, body, options),
 
-  delete: <T>(endpoint: string, options?: RequestOptions) => 
+  delete: <T>(endpoint: string, options?: RequestOptions) =>
     request<T>('DELETE', endpoint, undefined, options),
 
-  upload: <T>(endpoint: string, formData: FormData, options?: RequestOptions) => 
+  upload: <T>(endpoint: string, formData: FormData, options?: RequestOptions) =>
     upload<T>(endpoint, formData, options),
 };
