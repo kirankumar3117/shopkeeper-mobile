@@ -149,6 +149,13 @@ export interface Shop {
   updated_at?: string;
 }
 
+export interface ShopDashboardResponse {
+  shop_name: string;
+  mobile: string;
+  total_earnings: number;
+  today_earnings: number;
+}
+
 export interface RegisterShopRequest {
   shop_name: string;
   owner_name: string;
@@ -249,6 +256,7 @@ export interface Order {
   id: string;
   order_number?: string;
   customer_id: string;
+  customer_phone?: string;
   shop_id: string;
   status: OrderStatus;
   total_amount: number;
@@ -272,6 +280,8 @@ export interface UpdateOrderRequest {
   status: OrderStatus;
   estimated_preparation_minutes?: number;
   total_amount?: number;
+  comment?: string;
+  order_notes?: string;
 }
 
 // ─── Notifications & WebSockets ──────────────────────────

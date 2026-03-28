@@ -8,12 +8,19 @@ import type {
   ApiResponse,
   RegisterShopRequest,
   RegisterShopResponse,
+  ShopDashboardResponse,
   Shop,
 } from '../types';
 
 const SHOPS_BASE = '/shops';
 
 export const shopService = {
+  /**
+   * Get basic shop dashboard info
+   * GET /shop/
+   */
+  getShopDashboard: () =>
+    apiClient.get<ShopDashboardResponse>(`/shop/`),
   /**
    * Register a new shop (Step 1)
    * POST /shops/register

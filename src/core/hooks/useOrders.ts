@@ -18,13 +18,15 @@ interface UseOrdersReturn {
   /** Fetch orders from API and sync to store */
   fetchOrders: (status?: OrderStatus) => Promise<void>;
   /** Accept an order (optimistic + API) — moves to 'preparing' */
-  accept: (id: string, total?: number) => Promise<boolean>;
+  accept: (id: string, total?: number, comment?: string) => Promise<boolean>;
   /** Mark order as ready (optimistic + API) */
   markReady: (id: string) => Promise<boolean>;
   /** Complete an order (optimistic + API) — moves to 'picked_up' */
   complete: (id: string) => Promise<boolean>;
   /** Reject an order (optimistic + API) */
   reject: (id: string) => Promise<boolean>;
+  /** Update order fields like comment and price independently */
+  updateOrderDetails: (id: string, updates: { comment?: string, total_amount?: number }) => Promise<boolean>;
   clearError: () => void;
 }
 
@@ -62,13 +64,14 @@ export function useOrders(): UseOrdersReturn {
     }
   }, [setOrders]);
 
-  const accept = useCallback(async (id: string, total?: number): Promise<boolean> => {
-    // Optimistic update first
+  const accept = useCallback(async (id: string, total?: number, comment?: string): Promise<boolean> => {
+    // Optimistic update first (could also add comment locally if store supported it)
     optimisticAccept(id, total);
     try {
       await ordersService.updateOrderStatus(id, { 
         status: 'preparing', 
         total_amount: total,
+        comment: comment,
       });
       return true;
     } catch (err) {
@@ -119,6 +122,19 @@ export function useOrders(): UseOrdersReturn {
     }
   }, [optimisticReject, fetchOrders]);
 
+  const updateOrderDetails = useCallback(async (id: string, updates: { comment?: string, total_amount?: number }): Promise<boolean> => {
+    try {
+      // NOTE: We omit 'status' to keep it unchanged if the backend allows partial updates.
+      // Or we can fetch the current status? We'll assume the backend allows partial updates.
+      await ordersService.updateOrderStatus(id, updates as any);
+      return true;
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Failed to update order details';
+      setError(msg);
+      return false;
+    }
+  }, []);
+
   const clearError = useCallback(() => setError(null), []);
 
   return {
@@ -129,6 +145,7 @@ export function useOrders(): UseOrdersReturn {
     markReady,
     complete,
     reject,
+    updateOrderDetails,
     clearError,
   };
 }
