@@ -150,10 +150,22 @@ export interface Shop {
 }
 
 export interface ShopDashboardResponse {
+  id: string;
   shop_name: string;
-  mobile: string;
-  total_earnings: number;
+  owner_name: string;
+  phone: string;
+  address: string | null;
+  is_verified: boolean;
+  is_onboarded: boolean;
+  is_online: boolean;
+  onboarding_step: string;
+  shop_image_url: string | null;
+  owner_image_url: string | null;
+  total_earning: number;
   today_earnings: number;
+  // Legacy aliases for backwards compat
+  mobile?: string;
+  total_earnings?: number;
 }
 
 export interface RegisterShopRequest {
@@ -212,6 +224,7 @@ export interface InventoryItem {
 }
 
 export interface AddToInventoryRequest {
+  shop_id: string;
   product_id: string;
   price: number;
   stock: number;
@@ -228,6 +241,19 @@ export interface CreateProductRequestPayload {
   category?: string;
   subcategory?: string;
   // images can be handled via FormData if needed, omitting here for JSON
+}
+
+export interface DiscoverProduct {
+  id: string;
+  name: string;
+  mrp: number;
+}
+
+export interface ProductRequestPayload {
+  name: string;
+  image_url: string;
+  price: number;
+  stock: number;
 }
 
 // ─── Order Types ─────────────────────────────────────────

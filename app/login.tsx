@@ -6,29 +6,30 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, Lock } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-    ScrollView
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  
-  const { 
+
+  const {
     phoneNumber,
     login,
     setToken: storeSetToken,
     setUser,
     setOnboardingStep,
+    setShopId
   } = useAuthStore();
 
   const [pin, setPin] = useState('');
@@ -47,7 +48,7 @@ export default function LoginScreen() {
     try {
       // POST /api/v1/auth/merchant/login
       const response = await authService.loginWithPin(phoneNumber, pin);
-      const { tokens, user, onboarding_step } = response.data;
+      const { tokens, user, onboarding_step, shop } = response.data;
 
       // Store tokens
       await setToken(tokens.access_token);
@@ -56,6 +57,7 @@ export default function LoginScreen() {
       // Update store
       storeSetToken(tokens.access_token);
       setUser(user);
+      setShopId(shop.id);
       setOnboardingStep(onboarding_step);
       login();
 
@@ -73,23 +75,23 @@ export default function LoginScreen() {
   };
 
   return (
-    <View 
-      className="flex-1 bg-white" 
+    <View
+      className="flex-1 bg-white"
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           {/* Header */}
-          <TouchableOpacity 
-            onPress={() => router.back()} 
+          <TouchableOpacity
+            onPress={() => router.back()}
             className="mb-8 flex-row items-center mt-2"
           >
             <ArrowLeft size={24} color="#4B5563" />
@@ -98,8 +100,8 @@ export default function LoginScreen() {
 
           {/* Branding */}
           <View className="items-center mb-8">
-            <Image 
-              source={require('@/assets/images/icon.png')} 
+            <Image
+              source={require('@/assets/images/icon.png')}
               style={{ width: 80, height: 80, borderRadius: 16 }}
               resizeMode="contain"
             />
@@ -120,9 +122,8 @@ export default function LoginScreen() {
           </View>
 
           <TextInput
-            className={`w-full bg-gray-50 border rounded-xl p-5 text-center text-3xl tracking-[20px] font-bold ${
-              error ? 'border-red-500 bg-red-50' : 'border-green-500 bg-white'
-            }`}
+            className={`w-full bg-gray-50 border rounded-xl p-5 text-center text-3xl tracking-[20px] font-bold ${error ? 'border-red-500 bg-red-50' : 'border-green-500 bg-white'
+              }`}
             placeholder="• • • •"
             placeholderTextColor="#9CA3AF"
             keyboardType="number-pad"
@@ -142,24 +143,23 @@ export default function LoginScreen() {
             {[0, 1, 2, 3].map(i => (
               <View
                 key={i}
-                className={`h-3 w-3 rounded-full mx-2 ${
-                  pin.length > i ? 'bg-green-600' : 'bg-gray-300'
-                }`}
+                className={`h-3 w-3 rounded-full mx-2 ${pin.length > i ? 'bg-green-600' : 'bg-gray-300'
+                  }`}
               />
             ))}
           </View>
 
           {error ? (
-            <Text className="text-red-500 text-center mt-4 font-medium">{error}</Text> 
+            <Text className="text-red-500 text-center mt-4 font-medium">{error}</Text>
           ) : null}
 
           {/* Login Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={handleLogin}
             className={`w-full py-4 rounded-xl items-center mt-8 ${isLoading ? 'bg-green-400' : 'bg-green-600'}`}
             activeOpacity={0.8}
             disabled={isLoading || pin.length !== 4}
-            style={styles.shadow} 
+            style={styles.shadow}
           >
             {isLoading ? (
               <ActivityIndicator color="white" />
@@ -171,7 +171,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           {/* Forgot PIN */}
-          <TouchableOpacity 
+          <TouchableOpacity
             className="mt-6 items-center p-2 mb-8"
             onPress={() => {
               // TODO: Implement forgot PIN flow (resend OTP → reset PIN)

@@ -1,22 +1,14 @@
 import { ProductCard } from '@/src/components/ProductCard';
+import { productsService } from '@/src/core/api/services/products';
+import { DiscoverProduct } from '@/src/core/api/types';
 import { useInventory } from '@/src/core/hooks/useInventory';
 import { useInventoryStore } from '@/src/core/inventoryStore';
+import { useAuthStore } from '@/src/core/store';
+import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from 'expo-router';
-import { CheckCircle2, Package, Plus, Save, Search, X } from 'lucide-react-native';
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Keyboard,
-  Modal,
-  RefreshControl,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View
-} from 'react-native';
+import { Camera, CheckCircle2, Package, Plus, Save, Search, X } from 'lucide-react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, Image, Keyboard, KeyboardAvoidingView, Modal, PanResponder, Platform, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function InventoryScreen() {
@@ -45,9 +37,60 @@ export default function InventoryScreen() {
   const [filter, setFilter] = useState<'all' | 'in' | 'out'>('all');
 
   // Add form state
-  const [newProductId, setNewProductId] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const [suggestions, setSuggestions] = useState<DiscoverProduct[]>([]);
+  const [isSearchingProduct, setIsSearchingProduct] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<DiscoverProduct | null>(null);
+
+  const [newProductImage, setNewProductImage] = useState<string | null>(null);
   const [newItemPrice, setNewItemPrice] = useState('');
   const [newItemStock, setNewItemStock] = useState('10');
+  const [isSubmittingNew, setIsSubmittingNew] = useState(false);
+
+  // Auth store for shop_id
+  const shopId = useAuthStore((s) => s.shopId);
+
+  // Drag-to-dismiss
+  const sheetTranslateY = useRef(new Animated.Value(0)).current;
+
+  // Backdrop opacity: 0.5 at rest → 0 when dragged 300px down
+  const backdropOpacity = sheetTranslateY.interpolate({
+    inputRange: [0, 300],
+    outputRange: [0.5, 0],
+    extrapolate: 'clamp',
+  });
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gs) => gs.dy > 5,
+      onPanResponderMove: (_, gs) => {
+        if (gs.dy > 0) {
+          sheetTranslateY.setValue(gs.dy);
+        }
+      },
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dy > 80) {
+          Animated.timing(sheetTranslateY, {
+            toValue: 600,
+            duration: 250,
+            useNativeDriver: true,
+          }).start(() => {
+            // Don't reset translateY here — it causes a 1-frame glitch.
+            // It gets reset in openAddSheet / resetAddForm instead.
+            setAddSheetVisible(false);
+          });
+        } else {
+          Animated.spring(sheetTranslateY, {
+            toValue: 0,
+            tension: 100,
+            friction: 10,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   // ── Load inventory on mount ───────────────────────────────
   useEffect(() => {
@@ -86,8 +129,8 @@ export default function InventoryScreen() {
 
   // ── Add product handler ───────────────────────────────────
   const handleAddNewProduct = async () => {
-    if (!newProductId || !newItemPrice) {
-      Alert.alert('Missing Info', 'Please enter Product ID and Price.');
+    if (!searchText.trim() || !newItemPrice) {
+      Alert.alert('Missing Info', 'Please enter a Product Name and Price.');
       return;
     }
 
@@ -99,34 +142,124 @@ export default function InventoryScreen() {
       return;
     }
 
-    const success = await addProduct({
-      product_id: newProductId.trim(),
-      price,
-      stock,
+    if (selectedProduct) {
+      // Existing product from catalog
+      const success = await addProduct({
+        shop_id: shopId || '',
+        product_id: selectedProduct.id,
+        productName: selectedProduct.name,
+        price,
+        stock,
+      });
+
+      if (success) {
+        resetAddForm();
+        setAddSheetVisible(false);
+      }
+    } else {
+      // Custom new product request
+      try {
+        setIsSubmittingNew(true);
+        // Note: We use an empty string or standard URL if no image is captured, 
+        // depending on your backend strictness. Assuming it handles base64 or empty gracefully.
+        await productsService.createProductRequest({
+          name: searchText.trim(),
+          price,
+          stock,
+          image_url: newProductImage || '',
+        });
+        setIsSubmittingNew(false);
+        Alert.alert('Request Sent', 'Your product addition request has been sent to the admin.');
+        resetAddForm();
+        setAddSheetVisible(false);
+      } catch (err: any) {
+        setIsSubmittingNew(false);
+        Alert.alert('Error', err.message || 'Failed to submit product request');
+      }
+    }
+  };
+
+  const handleSearchTextChange = async (text: string) => {
+    setSearchText(text);
+    if (selectedProduct && text !== selectedProduct.name) {
+      setSelectedProduct(null);
+    }
+
+    if (text.length > 2) {
+      setIsSearchingProduct(true);
+      try {
+        const results = await productsService.discoverProducts(text);
+        // Map any generic item returned into DiscoverProduct assuming it has id/name/mrp or price
+        // The endpoint is expected to return objects shaped appropriately matching types
+        setSuggestions((results as any)?.data || results || []);
+      } catch (e) {
+        setSuggestions([]);
+      } finally {
+        setIsSearchingProduct(false);
+      }
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  const selectSuggestion = (item: DiscoverProduct) => {
+    setSelectedProduct(item);
+    setSearchText(item.name);
+    setNewItemPrice(item.mrp?.toString() || '');
+    setSuggestions([]);
+    Keyboard.dismiss();
+  };
+
+  const captureImage = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Camera permission is required to capture images.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.5,
+      base64: true,
     });
 
-    if (success) {
-      setNewProductId('');
-      setNewItemPrice('');
-      setNewItemStock('10');
-      setAddSheetVisible(false);
+    if (!result.canceled && result.assets && result.assets[0].base64) {
+      setNewProductImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
     }
+  };
+
+  const resetAddForm = () => {
+    setSearchText('');
+    setSelectedProduct(null);
+    setSuggestions([]);
+    setNewProductImage(null);
+    setNewItemPrice('');
+    sheetTranslateY.setValue(0);
+    setNewItemStock('10');
   };
 
   // ── Open sheet ────────────────────────────────────────────
   const openAddSheet = () => {
     Keyboard.dismiss();
+    resetAddForm();
     setAddSheetVisible(true);
   };
 
   const closeAddSheet = () => {
     Keyboard.dismiss();
-    setAddSheetVisible(false);
+    Animated.timing(sheetTranslateY, {
+      toValue: 600,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => {
+      setAddSheetVisible(false);
+    });
   };
 
   // ── Filter Logic ──────────────────────────────────────────
   const filteredProducts = inventory.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = (p.name || '').toLowerCase().includes(search.toLowerCase());
     const matchesStock =
       filter === 'all' ? true : filter === 'in' ? p.stock > 0 : p.stock <= 0;
     return matchesSearch && matchesStock;
@@ -278,22 +411,28 @@ export default function InventoryScreen() {
             without an OS-level Modal. The dark backdrop is a View,
             not a system overlay, so no external blur leaks out.     */}
         {isAddSheetVisible && (
-          <View className="absolute inset-0 justify-end" style={{ zIndex: 50 }}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            className="absolute inset-0 justify-end"
+            style={{ zIndex: 50 }}
+          >
 
-            {/* Backdrop — tap to dismiss */}
+            {/* Backdrop — tap to dismiss, opacity fades with drag */}
             <TouchableWithoutFeedback onPress={closeAddSheet}>
-              <View
-                className="absolute inset-0 bg-black/50"
+              <Animated.View
+                style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#000' }, { opacity: backdropOpacity }]}
               />
             </TouchableWithoutFeedback>
 
             {/* Sheet */}
-            <View
+            <Animated.View
               className="bg-white rounded-t-3xl p-6"
-              style={{ maxHeight: '65%' }}
+              style={{ maxHeight: '70%', transform: [{ translateY: sheetTranslateY }] }}
             >
-              {/* Handle bar */}
-              <View className="w-10 h-1 bg-gray-200 rounded-full self-center mb-5" />
+              {/* Handle bar — draggable */}
+              <View {...panResponder.panHandlers} className="items-center pb-4 pt-1">
+                <View className="w-10 h-1.5 bg-gray-300 rounded-full" />
+              </View>
 
               {/* Title row */}
               <View className="flex-row justify-between items-center mb-6">
@@ -303,49 +442,134 @@ export default function InventoryScreen() {
                 </TouchableOpacity>
               </View>
 
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                <View className="space-y-4">
-                  <View>
-                    <Text className="text-gray-500 font-bold text-xs uppercase mb-2">Product ID</Text>
-                    <TextInput
-                      placeholder="Enter product ID from catalog"
-                      className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-base font-semibold text-gray-900"
-                      value={newProductId}
-                      onChangeText={setNewProductId}
-                      autoCapitalize="none"
-                    />
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ paddingBottom: 32 }}
+              >
+
+                  {/* Product Field */}
+                  <View style={{ marginBottom: 20 }}>
+                    <Text className="text-gray-500 font-bold text-xs uppercase mb-1.5 tracking-wide">
+                      Product
+                    </Text>
+                    <View>
+                      <TextInput
+                        placeholder="e.g. Aashirvaad Atta"
+                        className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-base font-semibold text-gray-900"
+                        value={searchText}
+                        onChangeText={handleSearchTextChange}
+                        autoCapitalize="words"
+                      />
+                      {isSearchingProduct && (
+                        <View className="absolute right-4 top-3.5">
+                          <ActivityIndicator size="small" color="#9CA3AF" />
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Suggestions — rendered outside of input view, no layout shift */}
+                    {suggestions.length > 0 && !selectedProduct && (
+                      <View
+                        className="bg-white border border-gray-200 rounded-xl mt-1 shadow-md overflow-hidden"
+                        style={{ maxHeight: 180 }}
+                      >
+                        <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled bounces={false}>
+                          {suggestions.map((item, idx) => (
+                            <TouchableOpacity
+                              key={item.id || idx}
+                              onPress={() => selectSuggestion(item)}
+                              className="px-4 py-3 flex-row justify-between items-center"
+                              style={{
+                                borderBottomWidth: idx < suggestions.length - 1 ? 1 : 0,
+                                borderBottomColor: "#F3F4F6",
+                              }}
+                            >
+                              <Text className="text-gray-800 text-sm flex-1 mr-2">{item.name}</Text>
+                              <Text className="text-green-700 font-bold text-sm">₹{item.mrp || 0}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
                   </View>
-                  <View>
-                    <Text className="text-gray-500 font-bold text-xs uppercase mb-2">Price (₹)</Text>
+
+                  {/* Price Field */}
+                  <View style={{ marginBottom: 20 }}>
+                    <Text className="text-gray-500 font-bold text-xs uppercase mb-1.5 tracking-wide">
+                      Price (₹)
+                    </Text>
                     <TextInput
                       placeholder="0.00"
                       keyboardType="numeric"
-                      className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-xl font-bold text-green-700"
+                      className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-xl font-bold text-green-700"
                       value={newItemPrice}
                       onChangeText={setNewItemPrice}
                     />
                   </View>
-                  <View>
-                    <Text className="text-gray-500 font-bold text-xs uppercase mb-2">Starting Stock</Text>
+
+                  {/* Stock Field */}
+                  <View style={{ marginBottom: 20 }}>
+                    <Text className="text-gray-500 font-bold text-xs uppercase mb-1.5 tracking-wide">
+                      Starting Stock
+                    </Text>
                     <TextInput
                       placeholder="10"
                       keyboardType="numeric"
-                      className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-xl font-bold text-gray-900"
+                      className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-xl font-bold text-gray-900"
                       value={newItemStock}
                       onChangeText={setNewItemStock}
                     />
                   </View>
-                </View>
 
-                <TouchableOpacity
-                  onPress={handleAddNewProduct}
-                  className="bg-green-600 rounded-xl py-4 items-center mt-8 mb-4 shadow-lg shadow-green-200"
-                >
-                  <Text className="text-white font-bold text-lg">Add to Inventory</Text>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
-          </View>
+                  {/* New Product Image Upload */}
+                  {searchText.length > 0 && !selectedProduct && (
+                    <View style={{ marginBottom: 20 }}>
+                      <Text className="text-gray-500 font-bold text-xs uppercase mb-1.5 tracking-wide">
+                        Product Photo
+                      </Text>
+                      <TouchableOpacity
+                        onPress={captureImage}
+                        className="bg-gray-50 border-2 border-dashed border-yellow-400 rounded-xl p-6 items-center justify-center flex-row"
+                      >
+                        {newProductImage ? (
+                          <Image
+                            source={{ uri: newProductImage }}
+                            style={{ width: "100%", height: 128, borderRadius: 10 }}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <>
+                            <Camera size={28} color="#FBBF24" />
+                            <Text className="text-yellow-700 font-bold text-base ml-3">
+                              Capture Product Photo
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                      <Text className="text-xs text-gray-400 mt-2 text-center">
+                        New product — upload a photo to request admin approval.
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Submit Button */}
+                  <TouchableOpacity
+                    onPress={handleAddNewProduct}
+                    disabled={isSubmittingNew}
+                    className={`rounded-xl py-4 items-center mt-4 shadow-md ${isSubmittingNew ? "bg-gray-400" : "bg-green-600"
+                      }`}
+                  >
+                    {isSubmittingNew ? (
+                      <ActivityIndicator color="white" />
+                    ) : (
+                      <Text className="text-white font-bold text-base">Add to Inventory</Text>
+                    )}
+                  </TouchableOpacity>
+
+                </ScrollView>
+            </Animated.View>
+          </KeyboardAvoidingView>
         )}
 
       </SafeAreaView>

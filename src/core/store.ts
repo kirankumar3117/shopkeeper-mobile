@@ -6,8 +6,8 @@ import { create } from 'zustand';
 interface AuthState {
   phoneNumber: string;
   isAuthenticated: boolean;
-  ownerPin: string | null; 
-  
+  ownerPin: string | null;
+
   // API integration fields
   token: string | null;
   user: User | null;
@@ -21,7 +21,7 @@ interface AuthState {
   setPhoneNumber: (phone: string) => void;
   login: () => void;
   logout: () => void;
-  
+
   setOwnerPin: (pin: string | null) => void;
   verifyPin: (inputPin: string) => boolean;
 
@@ -36,24 +36,24 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set, get) => ({
   phoneNumber: '',
   isAuthenticated: false,
-  ownerPin: null, 
+  ownerPin: null,
   token: null,
   user: null,
   shopId: null,
   shopStatus: null,
   onboardingStep: null,
-  
+
   // Actions
   setPhoneNumber: (phone) => set({ phoneNumber: phone }),
-  
+
   login: () => set({ isAuthenticated: true }),
-  
+
   logout: () => {
     clearAllTokens();
-    set({ 
-      phoneNumber: '', 
-      isAuthenticated: false, 
-      ownerPin: null, 
+    set({
+      phoneNumber: '',
+      isAuthenticated: false,
+      ownerPin: null,
       token: null,
       user: null,
       shopId: null,
@@ -61,9 +61,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       onboardingStep: null,
     });
   },
-  
+
   setOwnerPin: (pin) => set({ ownerPin: pin }),
-  
+
   verifyPin: (inputPin) => {
     const { ownerPin } = get();
     return ownerPin === inputPin;
