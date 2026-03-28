@@ -22,7 +22,7 @@ interface UseInventoryReturn {
   /** Fetch products from API and sync to store */
   fetchProducts: () => Promise<void>;
   /** Add a new product to inventory via API */
-  addProduct: (data: AddToInventoryRequest) => Promise<boolean>;
+  addProduct: (data: AddToInventoryRequest & { productName?: string }) => Promise<boolean>;
   /** Toggle stock status (optimistic update in store) */
   toggleStock: (id: string) => void;
   /** Update a product's price (optimistic update in store) */
@@ -72,18 +72,24 @@ export function useInventory(): UseInventoryReturn {
   }, [setInventory]);
 
   // ── Add new product to inventory via API ──────────────────
-  const addProduct = useCallback(async (data: AddToInventoryRequest): Promise<boolean> => {
+  const addProduct = useCallback(async (data: AddToInventoryRequest & { productName?: string }): Promise<boolean> => {
     setError(null);
     try {
-      const response = await inventoryService.addToInventory(data);
-      addItem(response.data);
+      await inventoryService.addToInventory({
+        shop_id: data.shop_id,
+        product_id: data.product_id,
+        price: data.price,
+        stock: data.stock,
+      });
+      // Refetch the full inventory to get complete joined data (name, unit, image_url etc.)
+      await fetchProducts();
       return true;
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Failed to add product';
       setError(msg);
       return false;
     }
-  }, [addItem]);
+  }, [fetchProducts]);
 
   // ── Toggle stock (optimistic — saved on bulk save) ────────
   const toggleStock = useCallback((id: string) => {

@@ -6,8 +6,8 @@
  * In production, points to the deployed backend URL.
  */
 
-// const DEV_BASE_URL = 'http://192.168.55.104:8000/api/v1';
-const DEV_BASE_URL = 'http://localhost:8000/api/v1';
+const DEV_BASE_URL = 'http://192.168.55.106:8000/api/v1';
+// const DEV_BASE_URL = 'http://localhost:8000/api/v1';
 const PROD_BASE_URL = 'https://api.kartmithra.com/api/v1'; // Update when deployed
 
 export const API_CONFIG = {

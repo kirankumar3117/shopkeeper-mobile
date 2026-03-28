@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Modal, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Modal, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/src/core/store';
 import { useShopStatus } from '@/src/core/hooks/useShopStatus';
@@ -172,15 +172,26 @@ export default function ProfileScreen() {
         
         {/* 1. Profile Header */}
         <View className="bg-white px-6 py-6 mb-2 border-b border-gray-100 flex-row items-center">
-          <View className="h-16 w-16 bg-green-100 rounded-full items-center justify-center mr-4 border border-green-200">
-             <User size={32} color="#16A34A" />
-          </View>
-          <View>
-            <Text className="text-xl font-bold text-gray-900">{dashboardData?.shop_name || 'My Shop'}</Text>
-            <Text className="text-gray-500 font-medium text-sm">+91 {dashboardData?.mobile || '98765 43210'}</Text>
-            <View className="bg-green-100 self-start px-2 py-0.5 rounded mt-1.5">
-              <Text className="text-green-700 text-[10px] font-bold tracking-wide">VERIFIED PARTNER</Text>
+          {dashboardData?.owner_image_url ? (
+            <Image
+              source={{ uri: dashboardData.owner_image_url }}
+              className="h-16 w-16 rounded-full mr-4 border border-green-200"
+              resizeMode="cover"
+            />
+          ) : (
+            <View className="h-16 w-16 bg-green-100 rounded-full items-center justify-center mr-4 border border-green-200">
+              <User size={32} color="#16A34A" />
             </View>
+          )}
+          <View className="flex-1">
+            <Text className="text-xl font-bold text-gray-900">{dashboardData?.owner_name || dashboardData?.shop_name || 'My Shop'}</Text>
+            <Text className="text-gray-500 font-medium text-sm">{dashboardData?.shop_name || ''}</Text>
+            <Text className="text-gray-400 font-medium text-xs mt-0.5">{dashboardData?.phone || ''}</Text>
+            {dashboardData?.is_verified && (
+              <View className="bg-green-100 self-start px-2 py-0.5 rounded mt-1.5">
+                <Text className="text-green-700 text-[10px] font-bold tracking-wide">VERIFIED PARTNER</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -198,7 +209,7 @@ export default function ProfileScreen() {
                   {/* Amount Display with Privacy Toggle */}
                   <View className="flex-row items-center">
                     <Text className="text-white text-3xl font-bold mr-3">
-                      {showEarnings ? `₹${dashboardData?.total_earnings?.toLocaleString() || '0'}` : '₹ • • • •'}
+                      {showEarnings ? `₹${(dashboardData?.total_earning ?? dashboardData?.total_earnings ?? 0).toLocaleString()}` : '₹ • • • •'}
                     </Text>
                     <TouchableOpacity onPress={handleRevealEarnings}>
                       {showEarnings ? (
@@ -213,7 +224,7 @@ export default function ProfileScreen() {
                 {/* Small Stat Box */}
                 <View className="bg-green-700 px-3 py-2 rounded-lg items-center">
                    <Text className="text-green-100 text-[10px] font-bold">TODAY</Text>
-                   <Text className="text-white font-bold">₹{dashboardData?.today_earnings?.toLocaleString() || '0'}</Text>
+                   <Text className="text-white font-bold">₹{(dashboardData?.today_earnings ?? 0).toLocaleString()}</Text>
                 </View>
               </View>
 
