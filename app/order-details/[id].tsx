@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, Phone } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, InteractionManager, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, InteractionManager, ScrollView, Text, TouchableOpacity, View, Linking, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Import from global store
@@ -64,6 +64,7 @@ export default function OrderDetailsScreen() {
 
   // 2. LOCAL STATE (Lifted State)
   const [manualTotal, setManualTotal] = useState(order?.total_amount?.toString() || '');
+  const [merchantNotes, setMerchantNotes] = useState(order?.order_notes || '');
 
   // 3. HANDLERS (Controller Logic)
   const handleReject = useCallback(() => {
@@ -80,12 +81,20 @@ export default function OrderDetailsScreen() {
   const handleAccept = useCallback(async () => {
     if (!order) return;
     const total = manualTotal ? parseFloat(manualTotal) : undefined;
-    const success = await accept(order.id, total);
+    const success = await accept(order.id, total, merchantNotes);
     if (success) {
       Alert.alert("Success", isHandwritten ? `Bill sent: ₹${manualTotal}` : "Order Accepted!");
       if (order.status === 'pending') router.back();
     }
-  }, [order, manualTotal, accept, isHandwritten, router]);
+  }, [order, manualTotal, merchantNotes, accept, isHandwritten, router]);
+
+  const handleCallCustomer = useCallback(() => {
+    if (order?.customer_phone) {
+      Linking.openURL(`tel:${order.customer_phone}`);
+    } else {
+      Alert.alert('Phone Number Missing', 'Customer phone number is not available for this order.');
+    }
+  }, [order?.customer_phone]);
 
   const handleMarkReady = useCallback(async () => {
     if (!order) return;
@@ -142,6 +151,9 @@ export default function OrderDetailsScreen() {
               {order.status === 'pending' ? '⚡ New Request' : order.status}
             </Text>
           </View>
+          <TouchableOpacity onPress={handleCallCustomer} className="p-2 ml-2 bg-green-100 rounded-full">
+            <Phone size={20} color="#16A34A" />
+          </TouchableOpacity>
         </View>
 
         {/* Content Area — lazy loaded after navigation completes */}
@@ -169,6 +181,21 @@ export default function OrderDetailsScreen() {
                   />
                 )}
               </React.Suspense>
+
+              {/* Merchant Notes Input */}
+              <View className="mt-6 mb-2">
+                <Text className="text-gray-700 font-bold mb-2 ml-1">Message to Customer</Text>
+                <TextInput
+                  value={merchantNotes}
+                  onChangeText={setMerchantNotes}
+                  placeholder="e.g. Some items out of stock, adjusted price."
+                  placeholderTextColor="#9CA3AF"
+                  className="bg-white px-4 py-3 rounded-xl border border-gray-200 text-gray-900 shadow-sm"
+                  multiline
+                  numberOfLines={2}
+                  style={{ textAlignVertical: 'top', minHeight: 80 }}
+                />
+              </View>
 
               <View className="h-40" />
             </ScrollView>

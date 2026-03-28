@@ -4,11 +4,12 @@ import { ShopHeader } from '@/src/components/ShopHeader';
 import { useOrders } from '@/src/core/hooks/useOrders';
 import { useShopStatus } from '@/src/core/hooks/useShopStatus';
 import { useOrderStore } from '@/src/core/orderStore';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Moon, Power, RefreshCw, Store } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FlingGestureHandler, Directions, State } from 'react-native-gesture-handler';
 
 export default function OrdersScreen() {
   const router = useRouter();
@@ -34,10 +35,12 @@ export default function OrdersScreen() {
     (activeTab === 'ready' && readyCount === 0)
   );
 
-  // Fetch on mount
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+  // Fetch on mount and focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchOrders();
+    }, [fetchOrders])
+  );
 
   // Pull to refresh
   const handleRefresh = useCallback(() => {
@@ -84,6 +87,23 @@ export default function OrdersScreen() {
     if (currentStatus === 'ready') complete(orderId);
   };
 
+  // --- SWIPE GESTURE HANDLERS ---
+  const TABS = ['all', 'preparing', 'ready'] as const;
+
+  const handleSwipeLeft = () => {
+    const currentIndex = TABS.indexOf(activeTab);
+    if (currentIndex < TABS.length - 1) {
+      setActiveTab(TABS[currentIndex + 1]);
+    }
+  };
+
+  const handleSwipeRight = () => {
+    const currentIndex = TABS.indexOf(activeTab);
+    if (currentIndex > 0) {
+      setActiveTab(TABS[currentIndex - 1]);
+    }
+  };
+
   return (
     <View className="flex-1 bg-gray-50">
       <SafeAreaView className="flex-1" edges={['top']}>
@@ -101,8 +121,25 @@ export default function OrdersScreen() {
           counts={getCounts()}
         />
 
-        <ScrollView
-          className="flex-1 px-4 pt-2"
+        <FlingGestureHandler
+          direction={Directions.LEFT}
+          onHandlerStateChange={({ nativeEvent }) => {
+            if (nativeEvent.state === State.ACTIVE) {
+              handleSwipeLeft();
+            }
+          }}
+        >
+          <FlingGestureHandler
+            direction={Directions.RIGHT}
+            onHandlerStateChange={({ nativeEvent }) => {
+              if (nativeEvent.state === State.ACTIVE) {
+                handleSwipeRight();
+              }
+            }}
+          >
+            <View className="flex-1">
+              <ScrollView
+                className="flex-1 px-4 pt-2"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ flexGrow: 1 }}
         >
@@ -223,7 +260,10 @@ export default function OrdersScreen() {
             </>
           )}
           <View className="h-24" />
-        </ScrollView>
+          </ScrollView>
+            </View>
+          </FlingGestureHandler>
+        </FlingGestureHandler>
       </SafeAreaView>
     </View>
   );

@@ -4,6 +4,8 @@ import { Alert, Modal, ScrollView, Switch, Text, TextInput, TouchableOpacity, Vi
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/src/core/store';
 import { useShopStatus } from '@/src/core/hooks/useShopStatus';
+import { useShopDashboard } from '@/src/core/hooks/useShopDashboard';
+import { useFocusEffect } from 'expo-router';
 import { Bell, ChevronRight, Eye, EyeOff, Globe, Lock, LogOut, Printer, ShieldCheck, User } from 'lucide-react-native';
 
 // --- Reusable Settings Row Component ---
@@ -46,6 +48,16 @@ export default function ProfileScreen() {
 
   // Shop online/offline — shared globally with Orders screen
   const { isOnline: isShopOpen, isToggling, toggleStatus } = useShopStatus();
+
+  // Shop Dashboard (Earnings) Data
+  const { dashboardData, fetchDashboard } = useShopDashboard();
+
+  // Fetch dashboard data on focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchDashboard();
+    }, [fetchDashboard])
+  );
 
   // Local State
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -164,8 +176,8 @@ export default function ProfileScreen() {
              <User size={32} color="#16A34A" />
           </View>
           <View>
-            <Text className="text-xl font-bold text-gray-900">Sai Kirana & General</Text>
-            <Text className="text-gray-500 font-medium text-sm">+91 98765 43210</Text>
+            <Text className="text-xl font-bold text-gray-900">{dashboardData?.shop_name || 'My Shop'}</Text>
+            <Text className="text-gray-500 font-medium text-sm">+91 {dashboardData?.mobile || '98765 43210'}</Text>
             <View className="bg-green-100 self-start px-2 py-0.5 rounded mt-1.5">
               <Text className="text-green-700 text-[10px] font-bold tracking-wide">VERIFIED PARTNER</Text>
             </View>
@@ -186,7 +198,7 @@ export default function ProfileScreen() {
                   {/* Amount Display with Privacy Toggle */}
                   <View className="flex-row items-center">
                     <Text className="text-white text-3xl font-bold mr-3">
-                      {showEarnings ? '₹24,500.00' : '₹ • • • •'}
+                      {showEarnings ? `₹${dashboardData?.total_earnings?.toLocaleString() || '0'}` : '₹ • • • •'}
                     </Text>
                     <TouchableOpacity onPress={handleRevealEarnings}>
                       {showEarnings ? (
@@ -201,7 +213,7 @@ export default function ProfileScreen() {
                 {/* Small Stat Box */}
                 <View className="bg-green-700 px-3 py-2 rounded-lg items-center">
                    <Text className="text-green-100 text-[10px] font-bold">TODAY</Text>
-                   <Text className="text-white font-bold">₹1,200</Text>
+                   <Text className="text-white font-bold">₹{dashboardData?.today_earnings?.toLocaleString() || '0'}</Text>
                 </View>
               </View>
 
